@@ -56,44 +56,55 @@ def get_iq_data(data, ch1, ch2):
     
     return iq_data, num_samp
 
-def process_to_dc(iq_data, num_samp, samp_freq):
+def process_to_dc(iq_data, samp_freq, fft_bins=1):
+
+    num_samp = iq_data.shape[1]
+
+    # Reshape the data so axis 1 indexes the different fft bins
+    new_num_samps = num_samp - num_samp%fft_bins
+    bin_samps = int(new_num_samps/fft_bins)
+    iq_data = iq_data[:,:new_num_samps]
+    iq_data = iq_data.reshape((-1,fft_bins,bin_samps))
+    print(f'New number of samples (after FFT binning): {new_num_samps}')
 
     # Get FFT data and freq domain and sort (fftfreq doesn't give freqs back in ascending order)
-    freq_domain = fftfreq(num_samp, 1/samp_freq)
+    freq_domain = fftfreq(bin_samps, 1/samp_freq)
     freq_sort = np.argsort(freq_domain)
     freq_domain = freq_domain[freq_sort]
-    iq_data_freq = fft(blackman(num_samp)*iq_data, axis=1)[:,freq_sort]
+    iq_data_freq = fft(blackman(bin_samps)*iq_data, axis=2)[:,:,freq_sort]
 
     # Finds index of the highest-power signal (i.e. the carrier)
-    carrier_indices = np.argmax(np.abs(iq_data_freq), axis=1)
+    carrier_indices = np.argmax(np.abs(iq_data_freq), axis=2)
 
     # Slices of indices immediately (3 away) around carrier index
-    slices = carrier_indices[:,np.newaxis] + np.arange(-3, 4)[np.newaxis,:]
+    slices = carrier_indices[:,:,np.newaxis] + np.arange(-3, 4)[np.newaxis,np.newaxis,:]
 
     # Frequencies around carrier frequency
-    freq_neighborhoods = np.take_along_axis(np.repeat(freq_domain[np.newaxis,:], slices.shape[0], axis=0), slices, axis=1)
+    freq_neighborhoods = freq_domain[slices]
   
     # FFT spectrum around carrier frequency
-    iq_data_freq_neighborhoods = np.abs(np.take_along_axis(iq_data_freq, slices, axis=1))
+    iq_data_freq_neighborhoods = np.abs(np.take_along_axis(iq_data_freq, slices, axis=2))
     slices = None
 
     # Carrier frequency is found by weighted average of frequencies around the highest-power one. Since DC peak is not a delta, since if the true frequency is shifting, power is shifting among the FFT bins. 
-    carrier_freqs = np.sum(freq_neighborhoods * iq_data_freq_neighborhoods/(np.sum(iq_data_freq_neighborhoods, axis=1)[:,np.newaxis]), axis=1)
+    carrier_freqs = np.sum(freq_neighborhoods * iq_data_freq_neighborhoods/(np.sum(iq_data_freq_neighborhoods, axis=2)[:,:,np.newaxis]), axis=2)
     iq_data_freq_neighborhoods, freq_neighborhoods = None, None
 
     # Phases of the carrier signal
-    carrier_phases = np.unwrap(np.angle(np.take_along_axis(iq_data_freq, np.array([carrier_indices]).T, axis=1)))
-    carrier_phases = carrier_phases.T[0]
+    carrier_phases = np.unwrap(np.angle(np.take_along_axis(iq_data_freq, carrier_indices[:,:,np.newaxis], axis=2))).squeeze(axis=2)
 
     # Down-mixes and eliminates any the phase due to the carrier
-    iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,np.newaxis]/samp_freq*np.arange(num_samp) + carrier_phases[:,np.newaxis]))
+    iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,:,np.newaxis]/samp_freq*np.arange(bin_samps) + carrier_phases[:,:,np.newaxis]))
 
     # Takes away any remnant phases between I/Q data
-    avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=1) # unwrap is very important here b/c we're averaging. if angle is fluctuating around +/- pi, the average of np.angle() could be ~0, but average of np.unwrap(np.angle()) will be the correct phase
-    iq_data *= np.exp(-1j*avg_phases[:,np.newaxis])
+    avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=2) # unwrap is very important here b/c we're averaging. if angle is fluctuating around +/- pi, the average of np.angle() could be ~0, but average of np.unwrap(np.angle()) will be the correct phase
+    iq_data *= np.exp(-1j*avg_phases[:,:,np.newaxis])
+
+    iq_data = iq_data.reshape((-1, new_num_samps))
+
     return np.real(iq_data)    
 
-def compute_ddf(dc_data, num_samp, samp_freq):
+def compute_ddf(dc_data, samp_freq):
 
     # We want to trim the DC data so that only an integer number of helicity window pairs can fit inside it
     num_samples_per_helicity_window = int(np.round(samp_freq / FLIP_FREQ))
@@ -116,6 +127,7 @@ if __name__ == '__main__':
 
     args = sys.argv
 
+    fft_bins = 1
 
     for i, arg in enumerate(args):
         if arg == '-d' or arg == '--dec':
@@ -124,6 +136,8 @@ if __name__ == '__main__':
             FORMAT_DATA = 1
         elif arg == '-chs' or arg == '--channels':
             CH1, CH2 = int(args[i+1]), int(args[i+2])
+        elif arg == '--fft-bins':
+            fft_bins = int(args[i+1])
         elif arg == '-h' or arg == '--help':
             print('''Usage: python3 compute_resolution.py <npy_file_path> [-h | --help] [-options]
 
@@ -179,9 +193,13 @@ OPTIONS
 
     print(f'Number of samples: {num_samp}')
 
-    dc_data = process_to_dc(iq_data, num_samp, SAMP_FREQ)
-    ddfs, rdfs = compute_ddf(dc_data, num_samp, SAMP_FREQ)
+    if fft_bins >= int(SAMP_FREQ/FLIP_FREQ):
+        print(f'Error: number of FFT bins ({fft_bins}) exceeds number of {FLIP_FREQ} Hz windows ({int(SAMP_FREQ/FLIP_FREQ)}).')
+        exit()
 
-    np.savez(tmp_dir_path + 'ddfs_rdfs', ddfs=ddfs, rdfs=rdfs)
+    dc_data = process_to_dc(iq_data, SAMP_FREQ, fft_bins=fft_bins)
+    ddfs, rdfs = compute_ddf(dc_data, SAMP_FREQ)
+
+    np.savez(tmp_dir_path + 'ddfs_rdfs_BINNED', ddfs=ddfs, rdfs=rdfs)
 
 

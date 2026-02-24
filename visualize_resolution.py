@@ -75,6 +75,8 @@ if __name__ == '__main__':
     ch1_name = 'ADC_C'
     ch2_name = 'ADC_A'
 
+    normalization = 1/np.sqrt(2)
+
     for i, arg in enumerate(args):
         if arg == '-ch1':
             ch1_name = args[i+1]
@@ -87,7 +89,9 @@ if __name__ == '__main__':
         print('Error: cannot open npz file.')
         raise
 
-    ddfs = data['ddfs']
+    print(f'Using normalization: {normalization}')
+
+    ddfs = data['ddfs'] * normalization
     rdf1, rdf2 = data['rdfs'][0,:], data['rdfs'][1,:]
 
     #mask = np.abs(ddfs) < 1e-3

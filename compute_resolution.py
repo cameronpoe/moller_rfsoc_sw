@@ -129,6 +129,9 @@ if __name__ == '__main__':
 
     fft_bins = 1
 
+    roll_channel = -1
+    roll_amount = 0
+
     for i, arg in enumerate(args):
         if arg == '-d' or arg == '--dec':
             DECIMATION = int(args[i+1])
@@ -136,8 +139,11 @@ if __name__ == '__main__':
             FORMAT_DATA = 1
         elif arg == '-chs' or arg == '--channels':
             CH1, CH2 = int(args[i+1]), int(args[i+2])
-        elif arg == '--fft-bins':
+        elif arg == '-fb' or arg == '--fft-bins':
             fft_bins = int(args[i+1])
+        elif arg == '-r':
+            roll_channel = int(args[i+1])
+            roll_amount = int(args[i+2])
         elif arg == '-h' or arg == '--help':
             print('''Usage: python3 compute_resolution.py <npy_file_path> [-h | --help] [-options]
 
@@ -155,6 +161,12 @@ OPTIONS
     
     [-chs <ch1> <ch2> | --channels <ch1> <ch2> ]
         Chooses which two channels to compare to compute the resolution.
+            
+    [-fb <num> | --fft-bins <num> ]
+        Sets the number of frequency bins to use to <num>. Default is <num>=1.
+                  
+    [-r <ch> <samples> | --roll <ch> <samples> ]
+        Rolls channel <ch> by number of samples <samples>. Default behavior is no rolling. 
 ''')
             exit()
     
@@ -176,6 +188,11 @@ OPTIONS
     print(f'Sampling frequency: {round(SAMP_FREQ*1e-6, 3)} MHz')   
     print(f'Channel 1: {CH1}') 
     print(f'Channel 2: {CH2}')
+    if roll_channel >= 0:
+        print(f'Roll channel: {roll_channel}')
+        print(f'Roll amount: {roll_amount}')
+    else:
+        print(f'Not rolling any channels.')
     
     data_path = args[1]
 
@@ -188,6 +205,13 @@ OPTIONS
             print(f'Error: cannot open file: {data_path}')
             raise
 
+    if roll_channel >= 0:
+        # Rolls I and Q
+        data[2*roll_channel] = np.roll(data[2*roll_channel], roll_amount)
+        data[2*roll_channel+1] = np.roll(data[2*roll_channel+1], roll_amount)
+
+        # Trims to avoid discontinuities
+        data = data[:, roll_amount:-roll_amount]
 
     iq_data, num_samp = get_iq_data(data, CH1, CH2)
 

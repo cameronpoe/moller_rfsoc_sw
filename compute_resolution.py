@@ -10,6 +10,7 @@ DECIMATION = 1
 FLIP_FREQ = 1.92e3
 FORMAT_DATA = 0
 CH1, CH2 = 0, 1
+VERBOSE = False
 
 def format_data(data_path):
     """Reformat muxed data from the RFSoC.
@@ -72,6 +73,9 @@ def process_to_dc(iq_data, samp_freq, fft_bins=1):
     freq_sort = np.argsort(freq_domain)
     freq_domain = freq_domain[freq_sort]
     iq_data_freq = fft(blackman(bin_samps)*iq_data, axis=2)[:,:,freq_sort]
+
+    if VERBOSE:
+        print('Finishesd FFTing')
 
     # Finds index of the highest-power signal (i.e. the carrier)
     carrier_indices = np.argmax(np.abs(iq_data_freq), axis=2)
@@ -144,6 +148,8 @@ if __name__ == '__main__':
         elif arg == '-r':
             roll_channel = int(args[i+1])
             roll_amount = int(args[i+2])
+        elif arg == '-v' or arg == '--verbose':
+            VERBOSE = True
         elif arg == '-h' or arg == '--help':
             print('''Usage: python3 compute_resolution.py <npy_file_path> [-h | --help] [-options]
 
@@ -167,6 +173,7 @@ OPTIONS
                   
     [-r <ch> <samples> | --roll <ch> <samples> ]
         Rolls channel <ch> by number of samples <samples>. Default behavior is no rolling. 
+    [-v | --verbose ]
 ''')
             exit()
     

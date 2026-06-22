@@ -9,7 +9,7 @@ const int LE[4] = {2, 3, 4, 5};   // DSA 1,2,3,4
 int attenSet[6] = {0,0,0,0,0,0};
 int del = 5;
 
-// Distinctive startup signature so you know THIS code is running
+// Startup flashes LEDs in new way compared to 2019/2020 Arduino code
 void startupSignature() {
   // 8 quick on-offs
   for (int i = 0; i < 8; i++) {
@@ -43,7 +43,6 @@ void setup() {
   for (int i = 0; i < 4; i++) pinMode(LE[i], OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // play the signature FIRST so you can confirm the upload
   startupSignature();
 
   // idle state

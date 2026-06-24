@@ -11,22 +11,22 @@ int del = 5;
 
 // Startup flashes LEDs in new way compared to 2019/2020 Arduino code
 void startupSignature() {
-  // 8 quick on-offs
-  for (int i = 0; i < 8; i++) {
+  // Quick on-offs
+  for (int i = 0; i < 6; i++) {
     digitalWrite(LED_BUILTIN, HIGH);
     delay(80);
     digitalWrite(LED_BUILTIN, LOW);
     delay(80);
   }
 
-  delay(300);  // small gap between the two patterns
+  delay(400);  // small gap between the two patterns
 
   // 4 slow on-offs
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(400);
+    delay(300);
     digitalWrite(LED_BUILTIN, LOW);
-    delay(400);
+    delay(300);
   }
 
   // off for one second

@@ -198,6 +198,51 @@ def plot_nice_ddf(ddfs, rdf1, rdf2, ch1_name, ch2_name, dir_path):
     
     return
 
+# def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
+
+#     fig, ax = plt.subplots()
+#     ax.scatter(rdfs*1e6, ddfs*1e6, marker='.', color='black')
+#     ax.set_xlabel('RDF (ppm)')
+#     ax.set_ylabel('DDF (ppm)')
+#     ax.xaxis.set_ticks_position('both')
+#     ax.yaxis.set_ticks_position('both')
+#     ax.xaxis.minorticks_on()
+#     ax.yaxis.minorticks_on()
+#     fig.savefig(dir_path + 'ddf_vs_rdf_scatter')
+
+#     bins = np.linspace(rdfs.min(), rdfs.max(), 21)
+#     idx = np.digitize(rdfs, bins)
+
+#     centers, means, ses = [], [], []
+#     for b in range(1, len(bins)):
+#         sel = idx == b
+#         n = sel.sum()
+#         if n > 1:
+#             m = ddfs[sel].mean()
+#             se = ddfs[sel].std(ddof=1) / np.sqrt(n)
+#             center = 0.5 * (bins[b-1] + bins[b])
+#             centers.append(center)
+#             means.append(m)
+#             ses.append(se)
+#             print(f"{center*1e6:8.0f}  mean={m*1e6:7.3f}  se={se*1e6:6.3f}  ({m/se:+.1f} sigma)")
+
+#     centers = np.array(centers)
+#     means = np.array(means)
+#     ses = np.array(ses)
+
+#     fig, ax = plt.subplots()
+#     ax.errorbar(centers*1e6, means*1e6, yerr=ses*1e6, fmt='o', capsize=3, color='black')
+#     ax.axhline(0, color='red', linestyle='--', linewidth=1)
+#     ax.set_xlabel('RDF (ppm)')
+#     ax.set_ylabel('Binned mean DDF (ppm)')
+#     ax.xaxis.set_ticks_position('both')
+#     ax.yaxis.set_ticks_position('both')
+#     ax.xaxis.minorticks_on()
+#     ax.yaxis.minorticks_on()
+#     fig.savefig(dir_path + 'ddf_vs_rdf_residuals')
+
+#     return
+
 def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
 
     fig, ax = plt.subplots()
@@ -230,18 +275,38 @@ def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
     means = np.array(means)
     ses = np.array(ses)
 
+    # --- weighted linear fit to the binned means ---
+    w = 1.0 / ses**2
+    # np.polyfit weights are 1/sigma, not 1/sigma^2
+    coeffs, cov = np.polyfit(centers, means, deg=1, w=1.0/ses, cov=True)
+    slope, intercept = coeffs
+    slope_err = np.sqrt(cov[0, 0])
+    intercept_err = np.sqrt(cov[1, 1])
+
+    # chi-squared / dof as a goodness-of-fit / "is a line enough" check
+    model = np.polyval(coeffs, centers)
+    chi2 = np.sum(((means - model) / ses)**2)
+    dof = len(centers) - 2
+    print(f"slope     = {slope:+.3e}  +/- {slope_err:.3e}  ({slope/slope_err:+.1f} sigma)")
+    print(f"intercept = {intercept*1e6:+.3f} +/- {intercept_err*1e6:.3f} ppm")
+    print(f"chi2/dof  = {chi2:.1f}/{dof} = {chi2/dof:.2f}")
+
     fig, ax = plt.subplots()
     ax.errorbar(centers*1e6, means*1e6, yerr=ses*1e6, fmt='o', capsize=3, color='black')
     ax.axhline(0, color='red', linestyle='--', linewidth=1)
+    xfit = np.linspace(centers.min(), centers.max(), 200)
+    ax.plot(xfit*1e6, np.polyval(coeffs, xfit)*1e6, color='blue',
+            label=f'linear fit (slope {slope:+.2e})')
     ax.set_xlabel('RDF (ppm)')
     ax.set_ylabel('Binned mean DDF (ppm)')
+    ax.legend()
     ax.xaxis.set_ticks_position('both')
     ax.yaxis.set_ticks_position('both')
     ax.xaxis.minorticks_on()
     ax.yaxis.minorticks_on()
     fig.savefig(dir_path + 'ddf_vs_rdf_residuals')
 
-    return
+    return slope, slope_err, intercept, intercept_err
 
 if __name__ == '__main__':
 

@@ -198,6 +198,51 @@ def plot_nice_ddf(ddfs, rdf1, rdf2, ch1_name, ch2_name, dir_path):
     
     return
 
+def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
+
+    fig, ax = plt.subplots()
+    ax.scatter(rdfs*1e6, ddfs*1e6, marker='.', color='black')
+    ax.set_xlabel('RDF (ppm)')
+    ax.set_ylabel('DDF (ppm)')
+    ax.xaxis.set_ticks_position('both')
+    ax.yaxis.set_ticks_position('both')
+    ax.xaxis.minorticks_on()
+    ax.yaxis.minorticks_on()
+    fig.savefig(dir_path + 'ddf_vs_rdf_scatter')
+
+    bins = np.linspace(rdfs.min(), rdfs.max(), 21)
+    idx = np.digitize(rdfs, bins)
+
+    centers, means, ses = [], [], []
+    for b in range(1, len(bins)):
+        sel = idx == b
+        n = sel.sum()
+        if n > 1:
+            m = ddfs[sel].mean()
+            se = ddfs[sel].std(ddof=1) / np.sqrt(n)
+            center = 0.5 * (bins[b-1] + bins[b])
+            centers.append(center)
+            means.append(m)
+            ses.append(se)
+            print(f"{center*1e6:8.0f}  mean={m*1e6:7.3f}  se={se*1e6:6.3f}  ({m/se:+.1f} sigma)")
+
+    centers = np.array(centers)
+    means = np.array(means)
+    ses = np.array(ses)
+
+    fig, ax = plt.subplots()
+    ax.errorbar(centers*1e6, means*1e6, yerr=ses*1e6, fmt='o', capsize=3, color='black')
+    ax.axhline(0, color='red', linestyle='--', linewidth=1)
+    ax.set_xlabel('RDF (ppm)')
+    ax.set_ylabel('Binned mean DDF (ppm)')
+    ax.xaxis.set_ticks_position('both')
+    ax.yaxis.set_ticks_position('both')
+    ax.xaxis.minorticks_on()
+    ax.yaxis.minorticks_on()
+    fig.savefig(dir_path + 'ddf_vs_rdf_residuals')
+
+    return
+
 if __name__ == '__main__':
 
     args = sys.argv
@@ -297,6 +342,8 @@ OPTIONS
     ddfs = rdfs[2] - rdfs[3]
 
     plot_nice_ddf(ddfs*1e6/np.sqrt(2), rdfs[2]*1e6, rdfs[3]*1e6, 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
+
+    plot_diff_nonlinearity(ddfs/np.sqrt(2), rdfs[3], tmp_dir_path)
 
 
 

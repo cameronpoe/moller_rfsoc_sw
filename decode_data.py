@@ -53,7 +53,7 @@ def format_data(data, data_gate, aclk_freq, words_per_packet, header_words):
     
     return buffer_np, first_ts, edge_times
 
-def process_to_dc(iq_data, samp_freq, fft_bins=1):
+def process_to_dc(iq_data, samp_freq, fft_bins=1, phase_rotate=False):
 
     num_samp = iq_data.shape[1]
 
@@ -91,22 +91,35 @@ def process_to_dc(iq_data, samp_freq, fft_bins=1):
     carrier_freqs = np.sum(freq_neighborhoods * iq_data_freq_neighborhoods/(np.sum(iq_data_freq_neighborhoods, axis=2)[:,:,np.newaxis]), axis=2)
     iq_data_freq_neighborhoods, freq_neighborhoods = None, None
 
-    # Phases of the carrier signal
-    carrier_phases = np.unwrap(np.angle(np.take_along_axis(iq_data_freq, carrier_indices[:,:,np.newaxis], axis=2))).squeeze(axis=2)
-    iq_data_freq, carrier_indices = None, None
+    # Downmixes data
+    iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,:,np.newaxis]/samp_freq*np.arange(bin_samps)))
+    carrier_freqs = None
 
-    # Down-mixes and eliminates any the phase due to the carrier
-    iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,:,np.newaxis]/samp_freq*np.arange(bin_samps) + carrier_phases[:,:,np.newaxis]))
-    carrier_freqs, carrier_phases = None, None
+    if phase_rotate:
 
-    # Takes away any remnant phases between I/Q data
-    avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=2) # unwrap is very important here b/c we're averaging. if angle is fluctuating around +/- pi, the average of np.angle() could be ~0, but average of np.unwrap(np.angle()) will be the correct phase
-    iq_data *= np.exp(-1j*avg_phases[:,:,np.newaxis])
-    avg_phases = None
+
+        # Phases of the carrier signal
+        carrier_phases = np.unwrap(np.angle(np.take_along_axis(iq_data_freq, carrier_indices[:,:,np.newaxis], axis=2))).squeeze(axis=2)
+        iq_data_freq, carrier_indices = None, None
+
+        # Eliminates any phase due to the carrier
+        iq_data = iq_data * np.exp(-1j * carrier_phases[:,:,np.newaxis])
+        carrier_phases = None
+
+
+        # Takes away any remnant phases between I/Q data
+        avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=2) # unwrap is very important here b/c we're averaging. if angle is fluctuating around +/- pi, the average of np.angle() could be ~0, but average of np.unwrap(np.angle()) will be the correct phase
+        iq_data *= np.exp(-1j*avg_phases[:,:,np.newaxis])
+        avg_phases = None
+
+    else:
+
+        iq_data_freq = None
+        iq_data = np.abs(iq_data)
 
     iq_data = iq_data.reshape((-1, new_num_samps))
 
-    return np.real(iq_data).astype(np.float64)    
+    return np.real(iq_data).astype(np.float64)  
 
 def gate_means(data, times, gates):
     """

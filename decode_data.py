@@ -114,6 +114,8 @@ def process_to_dc(iq_data, samp_freq, fft_bins=1, phase_rotate=False):
 
     else:
 
+        print('Using quadrature sum!')
+
         iq_data_freq = None
         iq_data = np.abs(iq_data)
 

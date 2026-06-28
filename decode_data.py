@@ -343,7 +343,7 @@ OPTIONS
 
     plot_nice_ddf(ddfs*1e6/np.sqrt(2), rdfs[2]*1e6, rdfs[3]*1e6, 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
 
-    plot_diff_nonlinearity(ddfs/np.sqrt(2), rdfs[3], tmp_dir_path)
+    plot_diff_nonlinearity(rdfs[3], ddfs/np.sqrt(2), tmp_dir_path)
 
 
 

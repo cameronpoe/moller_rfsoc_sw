@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -O0 -g -Iinclude
+CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -O0 -g -Iinclude -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -lm
 
 SRC = src/io.c src/iq_rot.c src/integrator.c  src/ddf.c main.c

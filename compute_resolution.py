@@ -11,6 +11,9 @@ FLIP_FREQ = 1.92e3
 FORMAT_DATA = 0
 CH1, CH2 = 0, 1
 VERBOSE = False
+ACLK_FREQ = 125e6
+HEADER_WORDS = 2
+WORDS_PER_PACKET = 124928
 
 def format_data(data_path):
     """Reformat muxed data from the RFSoC.
@@ -29,7 +32,25 @@ def format_data(data_path):
 
     """
 
-    data = np.load(data_path)
+    with_header = False
+
+    try:
+        data = np.load(data_path)
+    except:
+        try:
+            with_header = True
+            data = np.fromfile(data_path)
+        except:
+            raise
+
+    if with_header:
+        expected_magic_word_indices = np.arange(int(data.size / WORDS_PER_PACKET)) * WORDS_PER_PACKET
+        expected_metadata_mask = np.full(data.size, False)
+        expected_metadata_mask[expected_magic_word_indices] = True
+        expected_magic_word_indices = None
+        for _ in range(HEADER_WORDS-1):
+            expected_metadata_mask |= np.roll(expected_metadata_mask, 1)
+        data = data[~expected_metadata_mask]
 
     # Performs the formatting. First, changes the endianness, then interprets the data as
     #       single bytes. Reshapes so each element i (e.g. array[i,:]) is a list of each

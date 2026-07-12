@@ -1,0 +1,5 @@
+<map id="adc_frame_parser" name="adc_frame_parser">
+<area shape="rect" id="Node000001" title="Parses three raw 64&#45;bit words into one eight&#45;channel ADC frame." alt="" coords="5,5,131,31"/>
+<area shape="rect" id="Node000002" href="$rfsoc__types_8h.html#a80134b8dfdd72ad29f3f4e7bcfc5a56d" title="Constructs a 24&#45;bit ADC value from three individual bytes." alt="" coords="179,5,274,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,16,165,18,160,18,131,21"/>
+</map>

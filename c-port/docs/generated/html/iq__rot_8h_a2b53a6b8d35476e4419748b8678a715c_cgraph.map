@@ -1,0 +1,26 @@
+<map id="process_to_dc_window" name="process_to_dc_window">
+<area shape="rect" id="Node000001" title="Converts samples within one timestamp window to a DC signal." alt="" coords="5,55,163,80"/>
+<area shape="rect" id="Node000002" href="$iq__rot_8c.html#aec3716b98d019dc986774676a955feb1" title="Converts one complete ADC channel signal to a real&#45;valued DC signal." alt="" coords="211,55,317,80"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="162,65,198,66,193,69,164,70"/>
+<area shape="rect" id="Node000003" href="$iq__rot_8h.html#a096ea7a025dc9aa1e9a5d516d8555d2d" title="Determines whether a complex signal is approximately at DC." alt="" coords="416,5,507,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="317,52,364,40,403,32,398,34,366,45,318,57"/>
+<area shape="rect" id="Node000004" href="$iq__rot_8c.html#a747e8ac1a276deb584a678715fd45776" title="Extracts timestamped complex I/Q samples from parsed ADC packets." alt="" coords="365,55,557,80"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="317,65,352,67,347,68,318,70"/>
+<area shape="rect" id="Node000007" href="$rfsoc__types_8h.html#ac032df91d1f11a218398b7f7f48177cd" title="Processes one complex signal block and shifts its carrier to DC." alt="" coords="399,140,523,166"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="296,78,418,133,413,134,295,83"/>
+<area shape="rect" id="Node000005" href="$rfsoc__types_8h.html#abbc6ee0efcc89321b5a8ca9db882c062" title="Converts a signed 24&#45;bit ADC value to a signed 32&#45;bit integer." alt="" coords="617,5,727,31"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="519,51,604,34,599,35,520,57"/>
+<area shape="rect" id="Node000006" href="$rfsoc__types_8h.html#ac3ac03e91787b676200524fd9790a995" title="Get the adc24 channel object." alt="" coords="605,55,739,80"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="557,65,592,67,587,68,558,70"/>
+<area shape="rect" id="Node000008" href="$rfsoc__types_8h.html#a287c7b32d77ad1ede10aa25ceb30c3a0" title="Converts an FFT bin index to its corresponding signed frequency." alt="" coords="620,104,724,130"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="523,140,607,128,602,129,524,145"/>
+<area shape="rect" id="Node000009" href="$rfsoc__types_8h.html#a719b0282b59483b963f8bf47f47ba977" title="Implementation of discrete Fourier transform using the recursive Cooley&#45;Tukey FFT algorithm." alt="" coords="610,177,734,203"/>
+<area shape="poly" id="edge8_Node000007_Node000009" title=" " alt="" coords="524,161,597,176,592,177,524,166"/>
+<area shape="rect" id="Node000012" href="$rfsoc__types_8h.html#a7cccdca93acea6d8d102faadef04a718" title="Finds the index of the FFT coefficient with the largest magnitude." alt="" coords="616,227,728,252"/>
+<area shape="poly" id="edge12_Node000007_Node000012" title=" " alt="" coords="492,164,606,213,621,221,616,220,604,218,491,169"/>
+<area shape="poly" id="edge9_Node000009_Node000009" title=" " alt="" coords="646,176,641,169,644,159,655,153,672,151,691,153,702,163,696,162,689,158,672,156,656,158,648,163,646,168,651,178"/>
+<area shape="rect" id="Node000010" href="$rfsoc__types_8h.html#adb43dd8ea75a82869be6a4eb9acb6be3" title="Extracts the even&#45;indexed elements of a complex array." alt="" coords="787,153,861,179"/>
+<area shape="poly" id="edge10_Node000009_Node000010" title=" " alt="" coords="734,178,769,175,774,174,735,183"/>
+<area shape="rect" id="Node000011" href="$rfsoc__types_8h.html#af53fea8fd9b35a3a331d29b9e988a28d" title="Extracts the odd&#45;indexed elements of a complex array." alt="" coords="790,203,858,228"/>
+<area shape="poly" id="edge11_Node000009_Node000011" title=" " alt="" coords="735,198,778,208,772,207,734,203"/>
+</map>

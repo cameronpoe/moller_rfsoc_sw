@@ -1,0 +1,11 @@
+<map id="adc_frame_parser" name="adc_frame_parser">
+<area shape="rect" id="Node000001" title="Parses three raw 64&#45;bit words into one eight&#45;channel ADC frame." alt="" coords="427,31,552,56"/>
+<area shape="rect" id="Node000002" href="$io_8c.html#a5e396f9ce208481b398df69195527d7d" title="Parses timestamped ADC samples from the original packet format." alt="" coords="237,5,368,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="409,33,369,30,369,24,414,33"/>
+<area shape="rect" id="Node000003" href="$io_8c.html#aa9eda2da4f90d6f0eb1188191b3f808f" title="Parses timestamped ADC samples from DMA packets." alt="" coords="227,55,379,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="414,53,380,60,379,55,409,54"/>
+<area shape="rect" id="Node000004" href="$test1_8c.html#a4e24d38f3798c33881b8193f880d1684" title=" " alt="" coords="9,29,175,55"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="209,57,176,55,176,50,214,56"/>
+<area shape="rect" id="Node000005" href="$test2_8c.html#aec0602a6ed089b4c6dd17cad37e81fe9" title=" " alt="" coords="5,79,179,104"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="209,78,179,84,179,79,214,78"/>
+</map>

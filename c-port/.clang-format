@@ -1,0 +1,68 @@
+---
+Language: C
+BasedOnStyle: LLVM
+
+# Linux kernel uses tabs with display width 8.
+UseTab: Always
+TabWidth: 8
+IndentWidth: 8
+ContinuationIndentWidth: 8
+
+# Preferred Linux kernel line length.
+ColumnLimit: 80
+
+# K&R / Linux brace placement.
+BreakBeforeBraces: Attach
+
+# int *ptr, not int* ptr.
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Do not place short constructs on one line.
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# Keep case labels aligned with switch.
+IndentCaseLabels: false
+IndentCaseBlocks: false
+
+# Kernel-style preprocessor directives.
+IndentPPDirectives: None
+
+# Do not reorder headers automatically.
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Avoid aggressive argument packing.
+BinPackArguments: false
+BinPackParameters: AlwaysOnePerLine
+
+# Comments.
+ReflowComments: Always
+SpacesBeforeTrailingComments: 1
+
+# Whitespace.
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+
+# Preserve at most one consecutive empty line.
+MaxEmptyLinesToKeep: 1
+
+# Ensure the file ends with a newline.
+InsertNewlineAtEOF: true
+
+
+BreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 1000000
+
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: false
+
+AlignAfterOpenBracket: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+BreakFunctionDefinitionParameters: true
+

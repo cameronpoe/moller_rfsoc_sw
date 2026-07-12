@@ -1,0 +1,26 @@
+var rfsoc__types_8h =
+[
+    [ "adc24_t", "structadc24__t.html", "structadc24__t" ],
+    [ "adc_frame_t", "structadc__frame__t.html", "structadc__frame__t" ],
+    [ "gate_event_t", "structgate__event__t.html", "structgate__event__t" ],
+    [ "adc_sample_t", "structadc__sample__t.html", "structadc__sample__t" ],
+    [ "gate_window_t", "structgate__window__t.html", "structgate__window__t" ],
+    [ "rotated_sample_t", "structrotated__sample__t.html", "structrotated__sample__t" ],
+    [ "integration_result_t", "structintegration__result__t.html", "structintegration__result__t" ],
+    [ "timestamped_iq_t", "structtimestamped__iq__t.html", "structtimestamped__iq__t" ],
+    [ "ddf_result_t", "structddf__result__t.html", "structddf__result__t" ],
+    [ "M_PI", "rfsoc__types_8h.html#ae71449b1cc6e6250b91f539153a7a0d3", null ],
+    [ "MAGIC_WORD", "rfsoc__types_8h.html#aabebad9d7fb420a353fc2fc7c6f87a9a", null ],
+    [ "PHASE_LIM", "rfsoc__types_8h.html#a7d0820805b2d0cfcb7ae4321a261f0a0", null ],
+    [ "REL_LIM", "rfsoc__types_8h.html#a0a1a2522d6432283e58544789fa4a9b7", null ],
+    [ "TIME_INC", "rfsoc__types_8h.html#aa675c82c66b39178d34e7066e3defe8b", null ],
+    [ "adc24_to_int32", "rfsoc__types_8h.html#abbc6ee0efcc89321b5a8ca9db882c062", null ],
+    [ "fft_bin_to_freq", "rfsoc__types_8h.html#a287c7b32d77ad1ede10aa25ceb30c3a0", null ],
+    [ "fft_Cooley_Tukey", "rfsoc__types_8h.html#a719b0282b59483b963f8bf47f47ba977", null ],
+    [ "fft_find_argmax", "rfsoc__types_8h.html#a7cccdca93acea6d8d102faadef04a718", null ],
+    [ "get_adc24_channel", "rfsoc__types_8h.html#ac3ac03e91787b676200524fd9790a995", null ],
+    [ "get_even", "rfsoc__types_8h.html#adb43dd8ea75a82869be6a4eb9acb6be3", null ],
+    [ "get_odd", "rfsoc__types_8h.html#af53fea8fd9b35a3a331d29b9e988a28d", null ],
+    [ "make_adc24", "rfsoc__types_8h.html#a80134b8dfdd72ad29f3f4e7bcfc5a56d", null ],
+    [ "process_fft_block", "rfsoc__types_8h.html#ac032df91d1f11a218398b7f7f48177cd", null ]
+];

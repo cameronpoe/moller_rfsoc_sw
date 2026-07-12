@@ -1,0 +1,14 @@
+<map id="adc24_to_int32" name="adc24_to_int32">
+<area shape="rect" id="Node000001" title="Converts a signed 24&#45;bit ADC value to a signed 32&#45;bit integer." alt="" coords="621,31,731,56"/>
+<area shape="rect" id="Node000002" href="$test1_8c.html#a4e24d38f3798c33881b8193f880d1684" title=" " alt="" coords="394,5,560,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="604,35,561,31,561,26,609,35"/>
+<area shape="rect" id="Node000003" href="$iq__rot_8c.html#a747e8ac1a276deb584a678715fd45776" title="Extracts timestamped complex I/Q samples from parsed ADC packets." alt="" coords="381,55,573,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="609,52,574,58,574,53,604,52"/>
+<area shape="rect" id="Node000004" href="$test2_8c.html#aec0602a6ed089b4c6dd17cad37e81fe9" title=" " alt="" coords="5,31,179,56"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="364,63,179,52,179,46,367,59"/>
+<area shape="rect" id="Node000005" href="$iq__rot_8c.html#aec3716b98d019dc986774676a955feb1" title="Converts one complete ADC channel signal to a real&#45;valued DC signal." alt="" coords="227,80,333,106"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="368,82,333,89,333,83,363,82"/>
+<area shape="poly" id="edge5_Node000005_Node000004" title=" " alt="" coords="211,76,144,60,144,54,216,75"/>
+<area shape="rect" id="Node000006" href="$iq__rot_8c.html#a2b53a6b8d35476e4419748b8678a715c" title="Converts samples within one timestamp window to a DC signal." alt="" coords="13,80,171,106"/>
+<area shape="poly" id="edge6_Node000005_Node000006" title=" " alt="" coords="208,93,171,95,171,90,214,93"/>
+</map>

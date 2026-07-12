@@ -1,0 +1,28 @@
+\_form#0=36x13:$ I + iQ $
+\_form#1=125x40:\[X_k = \sum_{j=0}^{N-1} x_j e^{-2\pi i jk/N}.
+\]
+\_form#2=270x30:\[RDF_A =
+\frac{A_{k+1} - A_k}{A_{k+1} + A_k},
+\qquad * RDF_B =
+\frac{B_{k+1} - B_k}{B_{k+1} + B_k}.
+\]
+\_form#3=161x14:\[DDF = N(RDF_A - RDF_B),
+\]
+\_form#4=29x15:$1 / \sqrt{2}$
+\_form#5=120x13:\[start\_ts \leq ts < end\_ts
+\]
+\_form#6=163x14:\[t_s = t_{\mathrm{packet}} + s \cdot TIME\_INC.
+\]
+\_form#7=129x31:\[\frac{\langle |x_{i+1} - x_i| \rangle}
+{\langle |x_i| \rangle}
+< rel\_lim,
+\]
+\_form#8=155x14:\[\left\langle
+\left|
+\arg(x_{i+1}x_i^*)
+\right|
+\right\rangle
+< phase\_lim.
+\]
+\_form#9=64x13:\[x = I + iQ.
+\]

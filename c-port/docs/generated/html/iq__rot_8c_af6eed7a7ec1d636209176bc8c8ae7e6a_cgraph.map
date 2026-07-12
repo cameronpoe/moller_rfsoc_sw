@@ -1,0 +1,24 @@
+<map id="process_to_dc" name="process_to_dc">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,55,112,80"/>
+<area shape="rect" id="Node000002" href="$iq__rot_8h.html#a096ea7a025dc9aa1e9a5d516d8555d2d" title=" " alt="" coords="210,5,302,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="111,52,159,40,197,32,193,35,160,45,114,57"/>
+<area shape="rect" id="Node000003" href="$iq__rot_8c.html#a747e8ac1a276deb584a678715fd45776" title=" " alt="" coords="160,55,352,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="111,65,146,66,142,69,113,70"/>
+<area shape="rect" id="Node000006" href="$rfsoc__types_8h.html#ac032df91d1f11a218398b7f7f48177cd" title="Processes one complex signal block and shifts its carrier to DC." alt="" coords="194,140,318,166"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="91,78,213,132,208,135,90,83"/>
+<area shape="rect" id="Node000004" href="$rfsoc__types_8h.html#abbc6ee0efcc89321b5a8ca9db882c062" title="Converts a signed 24&#45;bit ADC value to a signed 32&#45;bit integer." alt="" coords="412,5,521,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="313,52,399,33,394,36,315,57"/>
+<area shape="rect" id="Node000005" href="$rfsoc__types_8h.html#ac3ac03e91787b676200524fd9790a995" title="Get the adc24 channel object." alt="" coords="400,55,533,80"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="352,65,387,67,382,68,353,70"/>
+<area shape="rect" id="Node000007" href="$rfsoc__types_8h.html#a287c7b32d77ad1ede10aa25ceb30c3a0" title="Converts an FFT bin index to its corresponding signed frequency." alt="" coords="414,104,519,130"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="318,140,401,128,396,129,319,145"/>
+<area shape="rect" id="Node000008" href="$rfsoc__types_8h.html#a719b0282b59483b963f8bf47f47ba977" title="Implementation of discrete Fourier transform using the recursive Cooley&#45;Tukey FFT algorithm." alt="" coords="404,177,529,203"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="319,161,392,176,386,177,318,166"/>
+<area shape="rect" id="Node000011" href="$rfsoc__types_8h.html#a7cccdca93acea6d8d102faadef04a718" title="Finds the index of the FFT coefficient with the largest magnitude." alt="" coords="411,227,522,252"/>
+<area shape="poly" id="edge11_Node000006_Node000011" title=" " alt="" coords="287,164,401,213,416,221,411,220,399,218,286,169"/>
+<area shape="poly" id="edge8_Node000008_Node000008" title=" " alt="" coords="440,176,436,169,439,159,449,153,467,151,485,153,496,163,491,162,483,158,467,156,451,158,443,163,441,168,445,178"/>
+<area shape="rect" id="Node000009" href="$rfsoc__types_8h.html#adb43dd8ea75a82869be6a4eb9acb6be3" title="Extracts the even&#45;indexed elements of a complex array." alt="" coords="581,153,656,179"/>
+<area shape="poly" id="edge9_Node000008_Node000009" title=" " alt="" coords="529,178,563,175,568,174,529,183"/>
+<area shape="rect" id="Node000010" href="$rfsoc__types_8h.html#af53fea8fd9b35a3a331d29b9e988a28d" title="Extracts the odd&#45;indexed elements of a complex array." alt="" coords="585,203,652,228"/>
+<area shape="poly" id="edge10_Node000008_Node000010" title=" " alt="" coords="529,198,572,207,567,207,529,203"/>
+</map>

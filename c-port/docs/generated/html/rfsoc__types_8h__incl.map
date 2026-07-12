@@ -1,0 +1,21 @@
+<map id="include/rfsoc_types.h" name="include/rfsoc_types.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="326,5,471,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,66,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="323,32,215,54,81,81,80,76,214,49,328,31"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="90,79,165,105"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="354,33,181,79,179,74,350,30"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="189,79,253,105"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="371,31,266,75,264,70,365,32"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="277,79,340,105"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="386,31,337,71,335,67,380,32"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="364,79,432,105"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="400,29,400,65,396,62,396,33"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="457,79,518,105"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="414,29,463,70,458,69,412,34"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="543,79,624,105"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="430,29,540,73,535,73,429,34"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="649,79,713,105"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="448,29,636,78,631,78,447,34"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="737,79,806,105"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="471,29,725,78,720,79,471,34"/>
+</map>

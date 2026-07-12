@@ -1,0 +1,7 @@
+<map id="adc_packet_parser" name="adc_packet_parser">
+<area shape="rect" id="Node000001" title="Parses timestamped ADC samples from the original packet format." alt="" coords="5,5,137,31"/>
+<area shape="rect" id="Node000002" href="$io_8h.html#a1da4c8cdb330b687216f1b43837e6e21" title="Parses three raw 64&#45;bit words into one eight&#45;channel ADC frame." alt="" coords="185,5,310,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="137,16,171,18,166,18,137,21"/>
+<area shape="rect" id="Node000003" href="$rfsoc__types_8h.html#a80134b8dfdd72ad29f3f4e7bcfc5a56d" title="Constructs a 24&#45;bit ADC value from three individual bytes." alt="" coords="358,5,453,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="311,16,345,18,339,18,311,21"/>
+</map>

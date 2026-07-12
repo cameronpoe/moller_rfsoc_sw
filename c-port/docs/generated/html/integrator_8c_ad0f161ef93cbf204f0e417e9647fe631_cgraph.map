@@ -1,0 +1,5 @@
+<map id="integrate_windows" name="integrate_windows">
+<area shape="rect" id="Node000001" title="Integrates DC&#45;converted signal samples over multiple helicity windows." alt="" coords="5,5,135,31"/>
+<area shape="rect" id="Node000002" href="$integrator_8c.html#a086d0448d30b25bd62796f7d6cebb7ed" title="Integrates DC&#45;converted signal samples within one helicity window." alt="" coords="183,5,333,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="135,16,170,18,165,18,135,21"/>
+</map>

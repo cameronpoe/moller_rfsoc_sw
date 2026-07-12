@@ -1,213 +1,279 @@
 #include "iq_rot.h"
 
 int get_iq_data_from_packets_ts(
-    const adc_sample_t *packets,
-    size_t n_samples,
-    int channel,
-    timestamped_iq_t *out
-) {
-    if (!packets || !out) return -1;
-    if (channel < 0 || channel > 3) return -2;
-    // if (channel2 < 0 || channel2 > 3) return -3;
+	const adc_sample_t *packets,
+	size_t n_samples,
+	int channel,
+	timestamped_iq_t *out) {
+	/* Validate the input and output arrays. */
+	if (!packets || !out)
+		return -1;
 
-    for (size_t i = 0; i < n_samples; i++) {
-        const adc_frame_t *frame = &packets[i].data;
+	/* Four physical ADC channels are available. Each channel uses
+	 * two streams: one for I and one for Q.
+	 */
+	if (channel < 0 || channel > 3)
+		return -2;
 
-        const adc24_t *ch1_i_adc = get_adc24_channel(frame, 2 * channel);
-        const adc24_t *ch1_q_adc = get_adc24_channel(frame, 2 * channel + 1);
+	/* Extract one complex I/Q value from every timestamped ADC frame. */
+	for (size_t i = 0; i < n_samples; i++) {
+		const adc_frame_t *frame = &packets[i].data;
 
-        // const adc24_t *ch2_i_adc = get_adc24_channel(frame, 2 * channel2);
-        // const adc24_t *ch2_q_adc = get_adc24_channel(frame, 2 * channel2 + 1);
+		/* Select the consecutive I and Q streams belonging to the
+		 * requested physical channel.
+		 */
+		const adc24_t *ch1_i_adc =
+			get_adc24_channel(frame, 2 * channel);
+		const adc24_t *ch1_q_adc =
+			get_adc24_channel(frame, 2 * channel + 1);
 
-        int32_t ch1_i = adc24_to_int32(*ch1_i_adc);
-        int32_t ch1_q = adc24_to_int32(*ch1_q_adc);
+		/* These pointers should always be valid because the channel
+		 * range was checked above.
+		 */
+		if (!ch1_i_adc || !ch1_q_adc)
+			return -2;
 
-        // int32_t ch2_i = adc24_to_int32(*ch2_i_adc);
-        // int32_t ch2_q = adc24_to_int32(*ch2_q_adc);
+		/* Sign-extend both 24-bit ADC values to signed 32-bit values.
+		 */
+		int32_t ch1_i = adc24_to_int32(*ch1_i_adc);
+		int32_t ch1_q = adc24_to_int32(*ch1_q_adc);
 
-        out[i].ts = packets[i].ts;
-        out[i].sig = (double)ch1_i + I * (double)ch1_q;
-        // out[i].sig2 = (double)ch2_i + I * (double)ch2_q;
-    }
+		/* Preserve the original sample timestamp and combine the
+		 * two components into the complex value I + iQ.
+		 */
+		out[i].ts = packets[i].ts;
+		out[i].sig = (double)ch1_i + I * (double)ch1_q;
+	}
 
-    return 0;
+	return 0;
 }
 
+int process_to_dc(
+	const adc_sample_t *packets,
+	size_t n_samples,
+	rotated_sample_t *out,
+	size_t *n_out,
+	uint64_t samp_freq,
+	int channel,
+	size_t fft_len) {
+	/* Validate all input and output pointers. The output sample count is
+	 * initialized to zero so that the caller never observes an
+	 * uninitialized value if an error occurs.
+	 */
+	if (!packets || !out || !n_out || n_samples == 0)
+		return -1;
 
-int process_to_dc(const adc_sample_t* packets, size_t n_samples,  rotated_sample_t* out,  uint64_t samp_freq, int channel, size_t fft_len) {
+	*n_out = 0;
+	/* Allocate temporary storage for the timestamped I/Q data and
+	 * a separate contiguous complex signal array.
+	 */
+	timestamped_iq_t *iq_data =
+		(timestamped_iq_t *)calloc(n_samples, sizeof(timestamped_iq_t));
+	double complex *sig =
+		(double complex *)calloc(n_samples, sizeof(double complex));
 
-    if (!packets || !out) return -1;
+	if (!iq_data || !sig) {
+		free(iq_data);
+		free(sig);
+		return -2;
+	}
 
-    timestamped_iq_t* iq_data = (timestamped_iq_t*) calloc(n_samples, sizeof(timestamped_iq_t));
-    double complex* sig = (double complex*) calloc(n_samples, sizeof(double complex));
-    // double complex* sig2 = (double complex*) calloc(n_samples, sizeof(double complex));
+	/* Extract the selected physical ADC channel as complex I/Q data. */
+	if (get_iq_data_from_packets_ts(packets, n_samples, channel, iq_data) !=
+		0) {
+		free(iq_data);
+		free(sig);
+		return -3;
+	}
 
-    if (!iq_data || !sig) {
-        free(iq_data);
-        free(sig);
-        return -2;
-    }
-    if (get_iq_data_from_packets_ts(packets, n_samples, channel, iq_data) !=0 ) {
-        free(iq_data);
-        free(sig);
-        return -3;
-    }
-    
+	double complex mean = 0.0 + 0.0 * I;
 
-    double complex mean = 0.0 + 0.0 * I;
-    // double complex mean2 = 0.0 + 0.0 * I;
+	/* Copy the complex samples into the working array, preserve all
+	 * timestamps, and accumulate the complex signal mean.
+	 */
+	for (size_t i = 0; i < n_samples; i++) {
+		sig[i] = iq_data[i].sig;
+		out[i].ts = iq_data[i].ts;
 
-    for (size_t i = 0; i < n_samples; i++) {
-        sig[i] = iq_data[i].sig;
-        out[i].ts = iq_data[i].ts;
+		mean += sig[i];
+	}
 
-        mean += sig[i];
-    }
-    
-    mean /= (double) n_samples;
-    
-    bool sig_dc = check_if_dc(sig, n_samples, PHASE_LIM, REL_LIM);
-    // bool sig2_dc = check_if_dc(sig2, n_samples, PHASE_LIM, REL_LIM);
+	/* Determine whether the extracted signal is already sufficiently
+	 * constant in amplitude and phase to be treated as DC.
+	 */
+	mean /= (double)n_samples;
 
+	bool sig_dc = check_if_dc(sig, n_samples, PHASE_LIM, REL_LIM);
+	if (!sig_dc) {
+		/* FFT down-conversion requires a nonzero power-of-two
+		 * block length.
+		 */
+		if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0) {
+			free(iq_data);
+			free(sig);
+			return -4;
+		}
 
-    // if (!sig1_dc || !sig2_dc) {
-    //     // passing only even ones 
-    //     if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0) return -4;
-    //     if (fft_len > n_samples) return -5; 
+		/* At least one complete FFT block must fit in the signal. */
+		if (fft_len > n_samples) {
+			free(iq_data);
+			free(sig);
+			return -5;
+		}
 
-        
-    //     if (n_samples % fft_len == 0) {
-    //         double freq_max1 = 0.0; 
-    //         double freq_max2 = 0.0; 
-    //         for (size_t start = 0; start + fft_len <= n_samples; start += fft_len) {
-    //             double complex* fft_sig1 = (double complex*) calloc(fft_len, sizeof(double complex));
-    //             double complex* fft_sig2 = (double complex*) calloc(fft_len, sizeof(double complex));
+		/* Allocate storage for the real-valued down-converted signal.
+		 */
+		double *real = (double *)calloc(n_samples, sizeof(double));
 
-    //             if (!fft_sig1 || !fft_sig2) return -6;
+		if (!real) {
+			free(real);
+			free(iq_data);
+			free(sig);
+			return -6;
+		}
 
-    //             int status1 = fft_Cooley_Tukey(&sig1[start], fft_len, fft_sig1);
-    //             int status2 = fft_Cooley_Tukey(&sig2[start], fft_len, fft_sig2);
+		/* Ignore any incomplete final block shorter than fft_len. */
+		size_t usable = n_samples - (n_samples % fft_len);
 
-    //             double freq_tmp1 = fft_bin_to_freq(samp_freq, fft_len, fft_find_argmax(fft_sig1, fft_len));
-    //             double freq_tmp2 = fft_bin_to_freq(samp_freq, fft_len, fft_find_argmax(fft_sig2, fft_len));
+		/* Down-convert each complete FFT block independently. */
+		for (size_t start = 0; start + fft_len <= usable;
+			start += fft_len) {
+			int s = process_fft_block(
+				sig, start, fft_len, (double)samp_freq, real);
 
-    //             freq_max1 = get_max(freq_max1, freq_tmp1);
-    //             freq_max2 = get_max(freq_max2, freq_tmp2);
-    //         }
-    //     } else {
-    //         size_t remainder = n_samples % fft_len;
-    //         size_t full_bins = (size_t) (n_samples - remainder) / (size_t) fft_len;
+			if (s != 0) {
+				free(real);
+				free(iq_data);
+				free(sig);
+				return -7;
+			}
+		}
 
-    //     }
+		/* Copy all successfully processed FFT samples into the output
+		 * array. Only complete FFT blocks are processed, therefore any
+		 * incomplete trailing block is discarded.
+		 */
+		for (size_t i = 0; i < usable; i++) {
+			out[i].ts = iq_data[i].ts;
+			out[i].sig = real[i];
+		}
 
+		/* Report the number of valid output samples. */
+		*n_out = usable;
 
-    // }
-    if (!sig_dc) {
-        if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0) return -4;
-        if (fft_len > n_samples) return -5;
+		free(real);
+		free(iq_data);
+		free(sig);
 
-        double* real = (double*) calloc(n_samples, sizeof(double));
-        // double* real2 = (double*) calloc(n_samples, sizeof(double));
+		return 0;
+	}
 
-        if (!real ) {
-            free(real);
-            free(iq_data);
-            free(sig);
-            return -6;
-        }
+	/* The signal is already at DC. Remove its residual constant phase
+	 * so that the complex mean lies on the positive real axis.
+	 */
+	double complex rot = cexp(-I * carg(mean));
 
-        size_t usable = n_samples - (n_samples % fft_len);
+	/* Rotate the signal so that its mean lies on the positive real axis,
+	 * then retain only the real component.
+	 */
+	for (size_t i = 0; i < n_samples; i++) {
+		out[i].sig = creal(sig[i] * rot);
+	}
 
-        for (size_t start = 0; start + fft_len <= usable; start += fft_len) {
-            int s = process_fft_block(sig, start, fft_len, (double)samp_freq, real);
-            // int s2 = process_fft_block(sig2, start, fft_len, (double)samp_freq, real2);
-
-            if (s != 0) {
-                free(real);
-                free(iq_data);
-                free(sig);
-                return -7;
-            }
-        }
-
-        for (size_t i = 0; i < usable; i++) {
-            out[i].ts = iq_data[i].ts;
-            out[i].sig = real[i];
-            // out[i].sig2 = real2[i];
-        }
-
-        free(real);
-        free(iq_data);
-        free(sig);
-
-        return 0;
-    }
-
-
-    double complex rot = cexp(-I * carg(mean / (double) n_samples));
-    // double complex rot2 = cexp(-I * carg(mean2 / (double) n_samples));
-
-    for (size_t i = 0; i < n_samples; i++) {
-        out[i].sig = creal(sig[i] * rot);
-        // out[i].sig2 = creal(sig2[i] * rot2);
-    }
-
-    free(iq_data);
-    free(sig);
-    return 0;
+	/* Every input sample produced one output sample. */
+	*n_out = n_samples;
+	free(iq_data);
+	free(sig);
+	return 0;
 }
 
-int process_to_dc_window(const adc_sample_t* packets, size_t n_samples, uint64_t start_ts, uint64_t end_ts, rotated_sample_t* out, size_t* n_out, uint64_t samp_freq, int channel, size_t fft_len) {
-    if (!packets || !out || !n_out) return -1;
-    *n_out = 0;
+int process_to_dc_window(
+	const adc_sample_t *packets,
+	size_t n_samples,
+	uint64_t start_ts,
+	uint64_t end_ts,
+	rotated_sample_t *out,
+	size_t *n_out,
+	uint64_t samp_freq,
+	int channel,
+	size_t fft_len) {
+	/* Validate all required input and output pointers. */
+	if (!packets || !out || !n_out)
+		return -1;
 
-    size_t count = 0;
+	/* A valid timestamp window must have a positive duration. */
+	if (start_ts >= end_ts)
+		return -2;
 
-    for (size_t i = 0; i < n_samples; i++) {
-        uint64_t ts = packets[i].ts;
+	/* Ensure that the caller never observes an uninitialized count
+	 * when the function exits with an error.
+	 */
+	*n_out = 0;
 
-        if (ts >= start_ts && ts < end_ts) {
-            count++;
-        }
-    }
+	size_t count = 0;
 
-    if (count == 0) return -4;
+	/* Count samples in the half-open interval [start_ts, end_ts). */
+	for (size_t i = 0; i < n_samples; i++) {
+		uint64_t ts = packets[i].ts;
 
-    adc_sample_t* window_packets = (adc_sample_t*) calloc(count, sizeof(adc_sample_t));
+		if (ts >= start_ts && ts < end_ts) {
+			count++;
+		}
+	}
 
-    if (!window_packets) return -5;
+	/* The selected window cannot be processed if it contains no samples. */
+	if (count == 0)
+		return -3;
 
-    size_t j = 0;
+	/* Allocate a contiguous array containing only samples from the
+	 * requested timestamp window.
+	 */
+	adc_sample_t *window_packets =
+		(adc_sample_t *)calloc(count, sizeof(adc_sample_t));
 
-    for (size_t i = 0; i < n_samples; i++) {
-        uint64_t ts = packets[i].ts;
+	if (!window_packets)
+		return -4;
 
-        if (ts >= start_ts && ts < end_ts) {
-            window_packets[j] = packets[i];
-            j++;
-        }
-    }
+	/* Copy all selected samples into the temporary window array. */
+	size_t j = 0;
 
-    int status = process_to_dc(
-        window_packets,
-        count,
-        out,
-        samp_freq,
-        channel,
-        fft_len
-    );
+	for (size_t i = 0; i < n_samples; i++) {
+		uint64_t ts = packets[i].ts;
 
-    if (status != 0) {
-        free(window_packets);
-        return -6;
-    }
+		if (ts >= start_ts && ts < end_ts) {
+			window_packets[j] = packets[i];
+			j++;
+		}
+	}
 
-    if (fft_len > 0 && count >= fft_len && (fft_len & (fft_len - 1)) == 0) {
-        *n_out = count - (count % fft_len);
-    } else {
-        *n_out = count;
-    }
+	/* Convert the selected signal window to DC. The function also reports
+	 * the number of valid output samples through n_out.
+	 */
+	size_t produced = 0;
 
-    free(window_packets);
-    return 0;
+	int status = process_to_dc(
+		window_packets,
+		count,
+		out,
+		&produced,
+		samp_freq,
+		channel,
+		fft_len);
+
+	*n_out = produced;
+	/* Stop if the DC conversion failed. n_out remains zero, as initialized
+	 * at the beginning of this function.
+	 */
+	if (status != 0) {
+		free(window_packets);
+		return -5;
+	}
+
+	/* Publish the number of valid output samples only after successful
+	 * processing.
+	 */
+	*n_out = produced;
+
+	free(window_packets);
+	return 0;
 }

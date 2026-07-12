@@ -1,0 +1,7 @@
+<map id="process_to_dc" name="process_to_dc">
+<area shape="rect" id="Node000001" title="Converts one complete ADC channel signal to a real&#45;valued DC signal." alt="" coords="227,31,333,56"/>
+<area shape="rect" id="Node000002" href="$test2_8c.html#aec0602a6ed089b4c6dd17cad37e81fe9" title=" " alt="" coords="5,5,179,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="209,35,179,33,179,27,214,34"/>
+<area shape="rect" id="Node000003" href="$iq__rot_8c.html#a2b53a6b8d35476e4419748b8678a715c" title="Converts samples within one timestamp window to a DC signal." alt="" coords="13,55,171,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="209,53,172,60,171,55,214,52"/>
+</map>

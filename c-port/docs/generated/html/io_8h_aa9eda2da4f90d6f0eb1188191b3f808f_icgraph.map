@@ -1,0 +1,7 @@
+<map id="adc_packet_parser_v2" name="adc_packet_parser_v2">
+<area shape="rect" id="Node000001" title="Parses timestamped ADC samples from DMA packets." alt="" coords="227,31,379,56"/>
+<area shape="rect" id="Node000002" href="$test1_8c.html#a4e24d38f3798c33881b8193f880d1684" title=" " alt="" coords="9,5,175,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="209,33,176,31,176,26,214,32"/>
+<area shape="rect" id="Node000003" href="$test2_8c.html#aec0602a6ed089b4c6dd17cad37e81fe9" title=" " alt="" coords="5,55,179,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="209,54,179,60,179,55,214,54"/>
+</map>

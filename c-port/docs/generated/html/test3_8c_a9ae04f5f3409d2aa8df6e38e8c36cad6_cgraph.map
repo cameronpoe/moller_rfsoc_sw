@@ -1,0 +1,7 @@
+<map id="dump_gate_parser_csv" name="dump_gate_parser_csv">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,162,31"/>
+<area shape="rect" id="Node000002" href="$io_8c.html#a7c6b2d5de19ac67bc6d7dc44a3428d50" title="Parses an array of raw gate&#45;event words." alt="" coords="210,5,334,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="162,16,197,18,191,18,162,21"/>
+<area shape="rect" id="Node000003" href="$io_8h.html#a232f53486645e64929ae74dcf8b8c906" title="Parses one raw 64&#45;bit gate&#45;event word." alt="" coords="382,5,543,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="334,16,369,18,363,18,334,21"/>
+</map>

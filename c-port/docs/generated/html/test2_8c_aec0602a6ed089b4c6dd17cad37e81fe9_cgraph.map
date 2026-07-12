@@ -1,0 +1,33 @@
+<map id="dump_process_to_dc_csv" name="dump_process_to_dc_csv">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,99,179,124"/>
+<area shape="rect" id="Node000002" href="$io_8c.html#aa9eda2da4f90d6f0eb1188191b3f808f" title="Parses timestamped ADC samples from DMA packets." alt="" coords="227,36,379,62"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="137,96,244,65,241,69,139,100"/>
+<area shape="rect" id="Node000005" href="$iq__rot_8c.html#a747e8ac1a276deb584a678715fd45776" title="Extracts timestamped complex I/Q samples from parsed ADC packets." alt="" coords="427,99,619,124"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="179,109,413,109,410,114,179,114"/>
+<area shape="rect" id="Node000008" href="$iq__rot_8c.html#aec3716b98d019dc986774676a955feb1" title="Converts one complete ADC channel signal to a real&#45;valued DC signal." alt="" coords="250,149,356,175"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="148,122,237,145,232,147,149,128"/>
+<area shape="rect" id="Node000003" href="$io_8h.html#a1da4c8cdb330b687216f1b43837e6e21" title="Parses three raw 64&#45;bit words into one eight&#45;channel ADC frame." alt="" coords="460,12,586,38"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="378,38,447,32,442,34,380,43"/>
+<area shape="rect" id="Node000004" href="$rfsoc__types_8h.html#a80134b8dfdd72ad29f3f4e7bcfc5a56d" title="Constructs a 24&#45;bit ADC value from three individual bytes." alt="" coords="686,5,782,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="586,20,673,19,668,21,587,25"/>
+<area shape="rect" id="Node000006" href="$rfsoc__types_8h.html#abbc6ee0efcc89321b5a8ca9db882c062" title="Converts a signed 24&#45;bit ADC value to a signed 32&#45;bit integer." alt="" coords="679,55,789,80"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="587,95,667,81,662,83,589,101"/>
+<area shape="rect" id="Node000007" href="$rfsoc__types_8h.html#ac3ac03e91787b676200524fd9790a995" title="Get the adc24 channel object." alt="" coords="667,104,801,130"/>
+<area shape="poly" id="edge6_Node000005_Node000007" title=" " alt="" coords="619,111,654,114,649,115,620,117"/>
+<area shape="poly" id="edge9_Node000008_Node000005" title=" " alt="" coords="356,147,452,127,447,129,357,153"/>
+<area shape="rect" id="Node000009" href="$iq__rot_8h.html#a096ea7a025dc9aa1e9a5d516d8555d2d" title="Determines whether a complex signal is approximately at DC." alt="" coords="478,149,569,175"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="356,160,465,161,459,163,357,165"/>
+<area shape="rect" id="Node000010" href="$rfsoc__types_8h.html#ac032df91d1f11a218398b7f7f48177cd" title="Processes one complex signal block and shifts its carrier to DC." alt="" coords="461,209,585,235"/>
+<area shape="poly" id="edge10_Node000008_Node000010" title=" " alt="" coords="353,173,461,204,456,205,353,178"/>
+<area shape="rect" id="Node000011" href="$rfsoc__types_8h.html#a287c7b32d77ad1ede10aa25ceb30c3a0" title="Converts an FFT bin index to its corresponding signed frequency." alt="" coords="682,153,786,179"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="574,206,665,184,670,183,575,211"/>
+<area shape="rect" id="Node000012" href="$rfsoc__types_8h.html#a719b0282b59483b963f8bf47f47ba977" title="Implementation of discrete Fourier transform using the recursive Cooley&#45;Tukey FFT algorithm." alt="" coords="672,227,796,252"/>
+<area shape="poly" id="edge12_Node000010_Node000012" title=" " alt="" coords="586,225,659,233,654,233,586,230"/>
+<area shape="rect" id="Node000015" href="$rfsoc__types_8h.html#a7cccdca93acea6d8d102faadef04a718" title="Finds the index of the FFT coefficient with the largest magnitude." alt="" coords="678,276,790,302"/>
+<area shape="poly" id="edge16_Node000010_Node000015" title=" " alt="" coords="567,233,679,271,674,271,566,238"/>
+<area shape="poly" id="edge13_Node000012_Node000012" title=" " alt="" coords="708,225,703,218,706,208,717,202,734,200,753,203,764,212,758,211,751,208,734,205,718,207,710,212,708,218,713,227"/>
+<area shape="rect" id="Node000013" href="$rfsoc__types_8h.html#adb43dd8ea75a82869be6a4eb9acb6be3" title="Extracts the even&#45;indexed elements of a complex array." alt="" coords="849,203,923,228"/>
+<area shape="poly" id="edge14_Node000012_Node000013" title=" " alt="" coords="796,227,831,224,836,223,797,232"/>
+<area shape="rect" id="Node000014" href="$rfsoc__types_8h.html#af53fea8fd9b35a3a331d29b9e988a28d" title="Extracts the odd&#45;indexed elements of a complex array." alt="" coords="852,252,920,278"/>
+<area shape="poly" id="edge15_Node000012_Node000014" title=" " alt="" coords="797,247,840,257,834,257,796,253"/>
+</map>

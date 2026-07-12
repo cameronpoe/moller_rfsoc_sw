@@ -1,0 +1,7 @@
+<map id="adc_sample_t" name="adc_sample_t">
+<area shape="rect" id="Node000001" title="One timestamped ADC frame." alt="" coords="5,341,108,367"/>
+<area shape="rect" id="Node000002" href="$structadc__frame__t.html" title="One frame of the raw data input stream as eight 24&#45;bit ADC values." alt="" coords="10,244,103,270"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="59,284,59,341,54,340,54,287"/>
+<area shape="rect" id="Node000003" href="$structadc24__t.html" title="One signed 24&#45;bit ADC value stored as three bytes." alt="" coords="23,5,90,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="59,46,59,244,54,244,54,48"/>
+</map>

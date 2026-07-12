@@ -1,0 +1,5 @@
+<map id="gate_word_parser" name="gate_word_parser">
+<area shape="rect" id="Node000001" title="Parses an array of raw gate&#45;event words." alt="" coords="5,5,130,31"/>
+<area shape="rect" id="Node000002" href="$io_8h.html#a232f53486645e64929ae74dcf8b8c906" title="Parses one raw 64&#45;bit gate&#45;event word." alt="" coords="178,5,339,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="130,16,164,18,159,18,130,21"/>
+</map>

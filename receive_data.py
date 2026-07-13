@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--host", default="127.0.0.1",
                         help="bind address (default: 127.0.0.1, loopback for SSH tunnel)")
     parser.add_argument("--port", type=int, default=5001,
-                        help="streaming port (default: 5001)")
+                        help="streaming port (default: 5001, check free ports via `ss -tnlp | grep :PORT`)")
     args = parser.parse_args()
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:

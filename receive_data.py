@@ -2,6 +2,7 @@
 import argparse
 import socket
 import sys
+from tqdm import tqdm
 
 def recv_exactly(conn, n):
     """Read exactly n bytes from conn, or raise if the connection closes early."""
@@ -41,19 +42,22 @@ def main():
 
             # 2. Read exactly that many bytes, streaming to disk
             received = 0
-            with open(args.filename, "wb") as f:
+            with open(args.filename, "wb") as f, \
+                 tqdm(total=nbytes, unit="B", unit_scale=True,
+                      unit_divisor=1024, desc="Receiving") as bar:
                 while received < nbytes:
                     chunk = conn.recv(min(nbytes - received, 1 << 20))
                     if not chunk:
+                        bar.close()
                         print(f"ERROR: connection closed early "
                               f"({received}/{nbytes} bytes)", file=sys.stderr)
                         sys.exit(1)
                     f.write(chunk)
                     received += len(chunk)
+                    bar.update(len(chunk))
 
             print(f"Saved {received} bytes to {args.filename}", flush=True)
 
-    # Falls off the end -> script exits with status 0
     print("Done.", flush=True)
 
 if __name__ == "__main__":

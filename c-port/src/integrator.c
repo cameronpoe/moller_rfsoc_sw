@@ -74,3 +74,70 @@ int integrate_windows(
 	}
 	return 0;
 }
+
+int integrate_windows_sorted(
+    const rotated_sample_t *data,
+    size_t n_samples,
+    const gate_window_t *windows,
+    size_t n_windows,
+    integration_result_t *out
+) {
+    if (!data || !windows || !out) {
+        return -1;
+    }
+
+    size_t sample_idx = 0;
+
+    for (size_t w = 0; w < n_windows; w++) {
+        const uint64_t start_ts = windows[w].start_ts;
+        const uint64_t end_ts = windows[w].end_ts;
+
+        if (start_ts >= end_ts) {
+            return -2;
+        }
+
+        /*
+         * Skip every sample before the beginning of this window.
+         *
+         * sample_idx is never reset, because timestamps and windows
+         * are assumed to be sorted in increasing time order.
+         */
+        while (
+            sample_idx < n_samples &&
+            data[sample_idx].ts < start_ts
+        ) {
+            sample_idx++;
+        }
+
+        double sum = 0.0;
+        size_t count = 0;
+
+        size_t i = sample_idx;
+
+        /*
+         * Integrate the half-open interval [start_ts, end_ts).
+         */
+        while (
+            i < n_samples &&
+            data[i].ts < end_ts
+        ) {
+            sum += data[i].sig;
+            count++;
+            i++;
+        }
+
+        out[w].sum = sum;
+        out[w].n_samples = count;
+        out[w].mean =
+            count > 0 ? sum / (double)count : 0.0;
+
+        /*
+         * Move forward for the next window.
+         *
+         * This is valid when windows are ordered and do not overlap.
+         */
+        sample_idx = i;
+    }
+
+    return 0;
+}

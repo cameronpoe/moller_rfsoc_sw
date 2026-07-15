@@ -210,6 +210,49 @@ static inline int get_odd(
 }
 
 /**
+ * @brief Returns one coefficient of a symmetric Blackman window.
+ * 
+ * 
+ * \f[
+ * w[i] = 0.42 - 0.5 cos(2 pi i / (n - 1)) + 0.08 cos(4 pi i / (n-1)).
+ * \f]
+ */
+static inline double blackman_window(size_t i, size_t n) {
+	if (n <= 1) {
+		return 1.0;
+	}
+
+	const double x = (double) i / (double) (n - 1);
+	return 0.42 - 0.5 * cos(2 * M_PI * x) + 0.08 * cos(4 * M_PI * x);
+}
+
+/**
+ * @brief 
+ * 
+ * @param current 
+ * @param previous 
+ * @return double 
+ */
+static inline double unwrap_phase_step(
+    double current,
+    double previous
+) {
+    double delta = current - previous;
+
+    while (delta > M_PI) {
+        delta -= 2.0 * M_PI;
+    }
+
+    while (delta < -M_PI) {
+        delta += 2.0 * M_PI;
+    }
+
+    return delta;
+}
+
+
+
+/**
  * @brief Implementation of discrete Fourier transform using
  * the recursive Cooley-Tukey FFT algorithm.
  *
@@ -365,11 +408,12 @@ static inline double fft_bin_to_freq(
 static inline size_t fft_find_argmax(
 	double complex *out,
 	size_t n) {
-	double max = cabs(out[0]);
 	size_t best_ind = 0;
 
 	if (!out || n == 0)
 		return 0;
+
+	double max = cabs(out[0]);
 
 	for (size_t i = 1; i < n; i++) {
 		double tmp = cabs(out[i]);
@@ -382,16 +426,23 @@ static inline size_t fft_find_argmax(
 
 	return best_ind;
 }
+
 /**
- * @brief Processes one complex signal block and shifts its carrier to DC.
+ * @brief Processes one FFT block and rotates it to DC.
  *
- * Computes the FFT of the selected signal block, determines the dominant
- * frequency bin, and mixes the signal with the negative of that frequency.
- * The resulting complex signal is then phase-rotated so that its average
- * lies on the real axis.
+ * This function implements the same algorithm as the Python
+ * process_to_dc() routine.
  *
- * The real part of the final rotated signal is written to out using the
- * same indices as the original input block.
+ * The carrier frequency is first estimated from the FFT of a Blackman-
+ * windowed copy of the signal. The original (non-windowed) IQ samples
+ * are then mixed to baseband using the estimated carrier frequency and
+ * carrier phase.
+ *
+ * Finally, any remaining average IQ phase offset is removed using the
+ * average of the unwrapped instantaneous phase.
+ *
+ * The output of this function is a real-valued signal whose carrier has
+ * been translated to DC and aligned with the real axis.
  *
  * @param[in] sig Complete input array of complex I/Q samples.
  * @param[in] start Index of the first sample in the block.
@@ -406,36 +457,58 @@ static inline size_t fft_find_argmax(
  *
  * @retval 0 Signal block was processed successfully.
  * @retval -1 sig or out is NULL.
- * @retval -2 Memory allocation failed.
- * @retval -3 FFT calculation failed.
- * @retval -4 No valid maximum FFT bin was found.
- *
+ * @retval -2 fft_len is either 0 or not a power of 2. 
+ * @retval -3 Memory allocation failed.
+ * @retval -4 FFT calculation failed.
+ * @retval -5 Invalid k_max evaluation.
+ * @retval -6 Division by zero. 
  */
 static inline int process_fft_block(
-	const double complex *sig,
-	size_t start,
-	size_t fft_len,
-	double samp_freq,
-	double *out) {
-	/* Validate the input and output pointers before accessing
-	 * either array.
-	 */
-	if (!sig || !out)
-		return -1;
+    const double complex* sig,
+    size_t start,
+    size_t fft_len,
+    double samp_freq,
+    double* out
+) {
+    if (!sig || !out) {
+        return -1;
+    }
+
+    if (fft_len == 0 ||
+        (fft_len & (fft_len - 1)) != 0) {
+        return -2;
+    }
+
 	/* Allocate temporary buffers for the FFT coefficients and the
 	 * complex signal after down-conversion to DC.
 	 */
-	double complex *fft_out = calloc(fft_len, sizeof(double complex));
-	double complex *dc = calloc(fft_len, sizeof(double complex));
+    double complex* fft_input =
+        calloc(fft_len, sizeof(double complex));
+
+    double complex* fft_out =
+        calloc(fft_len, sizeof(double complex));
+
+    double complex* dc =
+        calloc(fft_len, sizeof(double complex));
 
 	/* Release any successfully allocated buffer if either
 	 * allocation failed.
 	 */
-	if (!fft_out || !dc) {
-		free(fft_out);
-		free(dc);
-		return -2;
-	}
+    if (!fft_input || !fft_out || !dc) {
+        free(fft_input);
+        free(fft_out);
+        free(dc);
+        return -3;
+    }
+
+    /*
+     * Applying Blackman window to the signal while
+     * windowing used only for carrier estimation.
+     */
+    for (size_t i = 0; i < fft_len; i++) {
+        fft_input[i] =
+            sig[start + i] * blackman_window(i, fft_len);
+    }
 
 	/* Compute the FFT of the selected input block.
 	 *
@@ -443,77 +516,162 @@ static inline int process_fft_block(
 	 * const double complex
 	 * as its input argument.
 	 */
-	int status = fft_Cooley_Tukey(
-		(double complex *)&sig[start], fft_len, fft_out);
+    int status = fft_Cooley_Tukey(
+        fft_input,
+        fft_len,
+        fft_out
+    );
 
 	/* Abort if the FFT calculation failed. */
-	if (status != 0) {
-		free(fft_out);
-		free(dc);
-		return -3;
-	}
+    if (status != 0) {
+        free(fft_input);
+        free(fft_out);
+        free(dc);
+        return -4;
+    }
 
 	/* Find the FFT bin containing the largest signal magnitude. */
-	size_t kmax = fft_find_argmax(fft_out, fft_len);
+    const size_t kmax =
+        fft_find_argmax(fft_out, fft_len);
+
 
 	/* SIZE_MAX indicates that the FFT output was invalid or empty. */
 	if (kmax == SIZE_MAX) {
 		free(fft_out);
+		free(fft_input);
 		free(dc);
-		return -4;
+		return -5;
 	}
 
-	/* Convert the dominant FFT-bin index to its signed physical
-	 * frequency.
-	 */
-	double freq = fft_bin_to_freq(samp_freq, fft_len, kmax);
-	/* Extract the phase of the dominant carrier component.
-	 *
-	 * This value is currently used only for diagnostic output.
-	 */
-	double carrier_phase = carg(fft_out[kmax]);
+    /*
+     * Python calculates a magnitude-weighted frequency using
+     * the seven bins centered on the maximum-power bin.
+     */
+    double weighted_freq_sum = 0.0;
+    double magnitude_sum = 0.0;
 
-	printf("C DEBUG: start=%zu fft_len=%zu kmax=%zu carrier_freq=%.17g "
-	       "carrier_phase=%.17g\n",
-		start,
-		fft_len,
-		kmax,
-		freq,
-		carrier_phase);
-	/* Mix the dominant carrier frequency down to DC.
-	 *
-	 * Multiplication by exp(-i * phase) removes the estimated
-	 * carrier oscillation from each complex input sample.
-	 */
-	for (size_t i = 0; i < fft_len; i++) {
-		double phase = 2.0 * M_PI * freq * (double)i / samp_freq;
-		dc[i] = sig[start + i] * cexp(-I * phase);
-	}
+    for (int offset = -3; offset <= 3; offset++) {
+        /*
+         * Wrap FFT indices cyclically.
+         */
+        long signed_index = (long)kmax + offset;
 
-	/* Compute the mean complex value of the down-converted block. */
-	double complex mean = 0.0 + 0.0 * I;
-	for (size_t i = 0; i < fft_len; i++) {
-		mean += dc[i];
-	}
-	mean /= (double)fft_len;
+        while (signed_index < 0) {
+            signed_index += (long)fft_len;
+        }
 
-	/* Remove the residual phase offset so that the mean signal
-	 * lies on the positive real axis.
-	 */
-	double complex rot = cexp(-I * carg(mean));
+        while (signed_index >= (long)fft_len) {
+            signed_index -= (long)fft_len;
+        }
+
+        const size_t k = (size_t)signed_index;
+
+        const double magnitude = cabs(fft_out[k]);
+		
+		/* Convert the dominant FFT-bin index to its signed physical
+		* frequency.
+	 	*/
+        const double frequency =
+            fft_bin_to_freq(samp_freq, fft_len, k);
+
+        weighted_freq_sum += frequency * magnitude;
+        magnitude_sum += magnitude;
+
+    }
+
+    if (magnitude_sum == 0.0) {
+        free(fft_input);
+        free(fft_out);
+        free(dc);
+        return -6;
+    }
+
+    const double carrier_freq =
+        weighted_freq_sum / magnitude_sum;
+
+    /*
+     * Match:
+     * np.angle(iq_data_freq[..., carrier_index])
+     */
+    const double carrier_phase =
+        carg(fft_out[kmax]);
+
+    /*
+     * Match Python down-mixing:
+     *
+     * iq_data *= exp(
+     *   -1j * (
+     *     2*pi*carrier_freq/fs*n + carrier_phase
+     *   )
+     * )
+     */
+    for (size_t i = 0; i < fft_len; i++) {
+        const double phase =
+            2.0 * M_PI
+            * carrier_freq
+            * (double)i
+            / samp_freq
+            + carrier_phase;
+
+        dc[i] =
+            sig[start + i] * cexp(-I * phase);
+    }
+
+    /*
+     * Match:
+     * avg_phase = average(unwrap(angle(iq_data)))
+     */
+    double previous_raw_phase = carg(dc[0]);
+    double unwrapped_phase = previous_raw_phase;
+    double phase_sum = unwrapped_phase;
+
+    for (size_t i = 1; i < fft_len; i++) {
+        const double raw_phase = carg(dc[i]);
+
+        const double corrected_delta =
+            unwrap_phase_step(
+                raw_phase,
+                previous_raw_phase
+            );
+
+        unwrapped_phase += corrected_delta;
+        phase_sum += unwrapped_phase;
+
+        previous_raw_phase = raw_phase;
+    }
+
+    const double avg_phase =
+        phase_sum / (double)fft_len;
+
+    const double complex final_rotation =
+        cexp(-I * avg_phase);
 
 	/* Apply the phase rotation and store only the real component
 	 * of each final DC sample.
 	 */
-	for (size_t j = 0; j < fft_len; j++) {
-		out[start + j] = creal(dc[j] * rot);
-	}
+    for (size_t i = 0; i < fft_len; i++) {
+        out[start + i] =
+            creal(dc[i] * final_rotation);
+    }
+
+    // printf(
+    //     "block=%zu kmax=%zu "
+    //     "carrier_freq=%.17g "
+    //     "carrier_phase=%.17g "
+    //     "avg_phase=%.17g\n",
+    //     start,
+    //     kmax,
+    //     carrier_freq,
+    //     carrier_phase,
+    //     avg_phase
+    // );
 
 	/* Release all temporary working buffers. */
-	free(fft_out);
-	free(dc);
+    free(fft_input);
+    free(fft_out);
+    free(dc);
 
-	return 0;
+    return 0;
 }
 
 /**

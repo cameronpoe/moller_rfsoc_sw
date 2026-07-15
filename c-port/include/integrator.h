@@ -71,4 +71,17 @@ int integrate_windows(
 	size_t n_windows,
 	integration_result_t *out);
 
+
+
+int integrate_windows_sorted(
+    const rotated_sample_t *data,
+    size_t n_samples,
+    const gate_window_t *windows,
+    size_t n_windows,
+    integration_result_t *out
+);
+
 #endif // INTEGRATOR_H
+
+
+

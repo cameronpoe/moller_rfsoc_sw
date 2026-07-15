@@ -53,7 +53,7 @@ def format_data(data, data_gate, aclk_freq, words_per_packet, header_words):
     
     return buffer_np, first_ts, edge_times
 
-def process_to_dc(iq_data, samp_freq, fft_bins=1, phase_rotate=False):
+def process_to_dc(iq_data, samp_freq, fft_bins=1, phase_rotate=True):
 
     num_samp = iq_data.shape[1]
 
@@ -356,7 +356,7 @@ OPTIONS
         Show this summary of options.
 
     [-d <dec> | --dec <dec>]
-        Sets decimation to the integer <dec>. Sampling frequency is then 5e9/<dec>. Default is <dec>=1.
+        Sets decimation to the integer <dec>. Sampling frequency is then 5e9/<dec>. Default is <dec>=320.
                   
     [-f | --format ]
         Formats data from muxed RFSoC format into 2D numpy array indexed by I/Q channel.
@@ -421,9 +421,11 @@ OPTIONS
 
     ddfs = rdfs[2] - rdfs[3]
 
+    np.savez(tmp_dir_path + 'ddfs_rdfs_NEW', ddfs=ddfs, rdfs_elem2=rdfs[2], rdfs_elem3=rdfs[3]) 
+
     plot_nice_ddf(ddfs*1e6/np.sqrt(2), rdfs[2]*1e6, rdfs[3]*1e6, 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
 
-    plot_diff_nonlinearity(rdfs[3], ddfs/np.sqrt(2), tmp_dir_path)
+    #plot_diff_nonlinearity(rdfs[3], ddfs/np.sqrt(2), tmp_dir_path)
 
 
 

@@ -16,10 +16,14 @@ setup(
     name=module_name,
     version=find_version(os.path.join(module_name, "__init__.py")),
     description="MOLLER RFSoC software package",
+    author="Cameron Poe",
+    author_email="cameronpoe@berkeley.edu",
     packages=find_packages(include=[module_name, f"{module_name}.*"]),
     python_requires=">=3.10.0",
     install_requires=[
         "pynq",
         "numpy",
+        "xrfclk",
+        "xrfdc",
     ],
 )

@@ -446,7 +446,7 @@ def stream_tcp(buffer, host='127.0.0.1', port=5001, verbose=False):
     buffer.invalidate()  # safe regardless of cacheability
 
     # Transmits directly from PL DDR4
-    mv = memoryview(pynq_buffer).cast('B')
+    mv = memoryview(buffer).cast('B')
     
     nbytes = len(mv)
 

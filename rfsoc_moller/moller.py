@@ -47,7 +47,7 @@ class mollerOverlay(Overlay):
     """
     The MOLLER overlay supports data-taking operations for the BCM receivers in the MOLLER experiment.
     """
-    def __init__(self, bitfile_name='mts.bit', **kwargs):
+    def __init__(self, bitfile_name='moller.bit', **kwargs):
         """
          This overlay class supports the MOLLER overlay. It configures the PL gpio, internal memories,
          PL memory, and DMA interfaces. There are additional helper functions to: Configure and verify

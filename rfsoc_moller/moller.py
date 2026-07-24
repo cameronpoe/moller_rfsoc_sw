@@ -12,6 +12,7 @@ import numpy as np
 import time
 import os
 import subprocess
+import socket
 
 MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
 # MODULE_PATH = os.path.dirname(os.path.realpath('/home/xilinx/jupyter_notebooks/moller/cameron/')) # just for prototyping, uncomment above later

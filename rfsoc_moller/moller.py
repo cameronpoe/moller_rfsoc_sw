@@ -13,8 +13,8 @@ import time
 import os
 import subprocess
 
-# MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
-MODULE_PATH = os.path.dirname(os.path.realpath('/home/xilinx/jupyter_notebooks/moller/cameron/')) # just for prototyping, uncomment above later
+MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
+# MODULE_PATH = os.path.dirname(os.path.realpath('/home/xilinx/jupyter_notebooks/moller/cameron/')) # just for prototyping, uncomment above later
 CLOCKWIZARD_LOCK_ADDRESS = 0x0004
 CLOCKWIZARD_RESET_ADDRESS = 0x0000
 CLOCKWIZARD_RESET_TOKEN = 0x000A
@@ -439,4 +439,30 @@ def resolve_binary_path(bitfile_name):
         return os.path.join(MODULE_PATH, bitfile_name)
     else:
         raise FileNotFoundError(f'Cannot find {bitfile_name}.')
+
+def stream_tcp(buffer, host='127.0.0.1', port=5001, verbose=False):
+
+    buffer.invalidate()  # safe regardless of cacheability
+
+    # Transmits directly from PL DDR4
+    mv = memoryview(pynq_buffer).cast('B')
+    
+    nbytes = len(mv)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4 << 20)
+        s.connect((host, port)) # Opens connection
+        s.sendall(nbytes.to_bytes(8, 'little')) # Sends a 64 bit (8 byte) header saying how many bytes to expect
+
+        CHUNK = 1 << 20 # Size of chunk in bytes, 1 << 20 = 1 MiB
+        sent = 0
+        while sent < nbytes:
+            end = min(sent + CHUNK, nbytes)
+            s.sendall(mv[sent:end])
+            sent = end
+
+        if verbose:
+            print(f"Sent {sent} bytes")
+
+    return sent 
 # -------------------------------------------------------------------------------------------------

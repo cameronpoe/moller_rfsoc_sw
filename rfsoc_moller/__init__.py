@@ -1,6 +1,6 @@
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 from . import _sgdma_patch
-from .moller import mollerOverlay   # adjust to your actual class name
+from .moller import mollerOverlay, stream_tcp   # adjust to your actual class name
 
-__all__ = ["mollerOverlay"]
+__all__ = ["mollerOverlay", "stream_tcp"]

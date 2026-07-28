@@ -177,7 +177,7 @@ def compute_resolution(ddf, num_bins=100):
 
     residuals = (mygaussian(bin_centers, *popt_ddf) - n)**2 / (uncertainties**2)
     chi2 = np.sum(residuals)
-    dof = n.size - p0.size
+    dof = n.size - len(p0)
 
     return resolution, resolution_unc, n, bin_centers, popt_ddf, pcov, residuals, chi2, dof
 
@@ -215,7 +215,7 @@ def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
     fig.colorbar(h[3], cax=cbar_ax)
 
     bin_width = bin_centers[1] - bin_centers[0]
-    bin_edges = np.concatenate([bin_centers - 0.5*bin_width, bin_centers[-1] + 0.5*bin_width])
+    bin_edges = np.concatenate([bin_centers - 0.5*bin_width, np.array([bin_centers[-1] + 0.5*bin_width])])
     axs[1,0].stairs(n_ddf*1e6, bin_edges, fill=True)
     mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
     axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf), color='teal')
@@ -419,7 +419,7 @@ OPTIONS
 
     np.savez(tmp_dir_path + 'ddfs_rdfs_NEW', ddfs=ddfs, rdfs_elem2=rdfs[2], rdfs_elem3=rdfs[3]) 
 
-    plot_nice_ddf(ddfs*1e6/np.sqrt(2), rdfs[2]*1e6, rdfs[3]*1e6, 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
+    plot_resolution(rdfs[2], rdfs[3], 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
 
     #plot_diff_nonlinearity(rdfs[3], ddfs/np.sqrt(2), tmp_dir_path)
 

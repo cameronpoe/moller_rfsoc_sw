@@ -17,9 +17,11 @@
  */
 
 #define SAMP_FREQ 3072000000ULL
-struct timespec t0, t1;
-struct timespec t2, t3; 
-struct timespec t4, t5; 
+struct timespec t_read_in, t_read_out;
+struct timespec t_read_gate_in, t_read_gate_out;
+struct timespec t_parse_in, t_parse_out;
+struct timespec t_dc_in, t_dc_out;
+struct timespec t_integr_in, t_integr_out;
 /**
  * @brief Reads an entire binary file as uint64_t words.
  *
@@ -244,11 +246,10 @@ static int build_gate_windows(
 }
 
 int main(int argc, char **argv) {
-    clock_gettime(CLOCK_MONOTONIC, &t4);
     /*
      * Usage:
      *
-     * ./resolution_analysis ADC_FILE GATE_FILE OUTPUT_CSV \
+     * ./rfsoc_test ADC_FILE GATE_FILE OUTPUT_CSV \
      *                       WORDS_PER_PACKET FFT_LEN
      */
     if (argc != 6) {
@@ -350,7 +351,7 @@ int main(int argc, char **argv) {
      * ------------------------------------------------------------
      */
 
-    clock_gettime(CLOCK_MONOTONIC, &t2);
+    clock_gettime(CLOCK_MONOTONIC, &t_read_in);
     status = read_u64_file(
         adc_path,
         &raw_adc,
@@ -373,9 +374,15 @@ int main(int argc, char **argv) {
         status = -1;
         goto cleanup;
     }
+    clock_gettime(CLOCK_MONOTONIC, &t_read_out);
+
+    double sec_read = (double)(t_read_out.tv_sec - t_read_in.tv_sec) +
+		     1e-9 * (double)(t_read_out.tv_nsec - t_read_in.tv_nsec);
+
+	printf("read time = %.9f sec\n", sec_read);
+
 
     
-
     size_t n_dma_packets =
         n_adc_words / words_per_packet;
 
@@ -397,6 +404,8 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    clock_gettime(CLOCK_MONOTONIC, &t_parse_in);
+
     status = adc_packet_parser_v2(
         raw_adc,
         n_adc_words,
@@ -413,12 +422,14 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &t3);
+    clock_gettime(CLOCK_MONOTONIC, &t_parse_out);
 
-	double sec1 = (double)(t3.tv_sec - t2.tv_sec) +
-		     1e-9 * (double)(t3.tv_nsec - t2.tv_nsec);
+    double sec_parse = (double)(t_parse_out.tv_sec - t_parse_in.tv_sec) +
+		     1e-9 * (double)(t_parse_out.tv_nsec - t_parse_in.tv_nsec);
 
-	printf("parser time = %.9f sec\n", sec1);
+	printf("parser time = %.9f sec\n", sec_parse);
+
+    
     /*
      * ------------------------------------------------------------
      * 2. Process physical channels 2 and 3 to DC.
@@ -435,7 +446,7 @@ int main(int argc, char **argv) {
     size_t n_dc_ch2 = 0;
     size_t n_dc_ch3 = 0;
 
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    clock_gettime(CLOCK_MONOTONIC, &t_dc_in);
 
     status = process_to_dc(
         samples,
@@ -444,15 +455,16 @@ int main(int argc, char **argv) {
         &n_dc_ch2,
         SAMP_FREQ,
         2,
+        true,
         fft_len
     );
 
-    clock_gettime(CLOCK_MONOTONIC, &t1);
+    clock_gettime(CLOCK_MONOTONIC, &t_dc_out);
 
-	double sec = (double)(t1.tv_sec - t0.tv_sec) +
-		     1e-9 * (double)(t1.tv_nsec - t0.tv_nsec);
+	double sec_dc = (double)(t_dc_out.tv_sec - t_dc_in.tv_sec) +
+		     1e-9 * (double)(t_dc_out.tv_nsec - t_dc_in.tv_nsec);
 
-	printf("process_to_dc time = %.9f sec\n", sec);
+	printf("dc time = %.9f sec\n", sec_dc);
 
     if (status != 0) {
         fprintf(
@@ -470,6 +482,7 @@ int main(int argc, char **argv) {
         &n_dc_ch3,
         SAMP_FREQ,
         3,
+        true,
         fft_len
     );
 
@@ -513,6 +526,7 @@ int main(int argc, char **argv) {
      * 3. Read and decode gate data.
      * ------------------------------------------------------------
      */
+    clock_gettime(CLOCK_MONOTONIC, &t_read_gate_in);
     status = read_u64_file(
         gate_path,
         &raw_gate,
@@ -523,6 +537,13 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Failed to read gate file: %d\n", status);
         goto cleanup;
     }
+
+    clock_gettime(CLOCK_MONOTONIC, &t_read_gate_out);
+
+    double sec_gate = (double)(t_read_gate_out.tv_sec - t_read_gate_in.tv_sec) +
+		     1e-9 * (double)(t_read_gate_out.tv_nsec - t_read_gate_in.tv_nsec);
+
+	printf("read gate time = %.9f sec\n", sec_gate);
 
     status = remove_zero_gate_words(
         raw_gate,
@@ -610,7 +631,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
-    
+    clock_gettime(CLOCK_MONOTONIC, &t_integr_in);
 	status = integrate_windows_sorted(
     	dc_ch2,
     	n_dc_samples,
@@ -627,6 +648,12 @@ int main(int argc, char **argv) {
     	);
     	goto cleanup;
 	}
+    clock_gettime(CLOCK_MONOTONIC, &t_integr_out);
+
+    double sec_integr = (double)(t_integr_out.tv_sec - t_integr_in.tv_sec) +
+		     1e-9 * (double)(t_integr_out.tv_nsec - t_integr_in.tv_nsec);
+
+	printf("integrate time = %.9f sec\n", sec_integr);
 
 	status = integrate_windows_sorted(
     	dc_ch3,
@@ -804,9 +831,6 @@ cleanup:
 
     free(valid_ch2);
     free(valid_ch3);
-    clock_gettime(CLOCK_MONOTONIC, &t5);
-	double sec2 = (double)(t5.tv_sec - t4.tv_sec) +
-		     1e-9 * (double)(t5.tv_nsec - t4.tv_nsec);
-    printf("run time = %.9f sec\n", sec2);
+    
     return status == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

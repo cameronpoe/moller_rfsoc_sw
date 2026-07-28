@@ -85,6 +85,7 @@ int process_to_dc(
 	size_t *n_out,
 	uint64_t samp_freq,
 	int channel,
+	bool fft_flag,
 	size_t fft_len) {
 	/* Validate all input and output pointers. The output sample count is
 	 * initialized to zero so that the caller never observes an
@@ -133,11 +134,13 @@ int process_to_dc(
 	 */
 	mean /= (double)n_samples;
 
-	bool sig_dc = check_if_dc(sig, n_samples, PHASE_LIM, REL_LIM);
-	if (!sig_dc) {
+	// bool sig_dc = check_if_dc(sig, n_samples, PHASE_LIM, REL_LIM);
+	// if (!sig_dc && fft_flag == true) {
+	if (fft_flag == false) {
 		/* FFT down-conversion requires a nonzero power-of-two
 		 * block length.
 		 */
+		printf("FFT invoked\n");
 		if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0) {
 			free(iq_data);
 			free(sig);
@@ -288,6 +291,7 @@ int process_to_dc_window(
 		&produced,
 		samp_freq,
 		channel,
+		true,
 		fft_len);
 
 	*n_out = produced;

@@ -169,6 +169,7 @@ int process_to_dc(
 	size_t *n_out,
 	uint64_t samp_freq,
 	int channel,
+	bool fft_flag,
 	size_t fft_len);
 
 /**

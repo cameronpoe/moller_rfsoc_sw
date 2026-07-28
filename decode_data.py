@@ -216,11 +216,11 @@ def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
 
     bin_width = bin_centers[1] - bin_centers[0]
     bin_edges = np.concatenate([bin_centers - 0.5*bin_width, np.array([bin_centers[-1] + 0.5*bin_width])])
-    axs[1,0].stairs(n_ddf*1e6, bin_edges, fill=True)
+    axs[1,0].stairs(n_ddf*1e6, bin_edges, fill=False, color='purple')
     mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
-    axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf), color='teal')
+    axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf)*1e6, color='teal')
     axs[1,0].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(res*1e6, res_unc*1e6)}$ ppm', fontdict=dict(size=14))
-    axs[1,1].text(0.2*bins[-1], 0.55*np.max(n), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$ ppm', fontdict=dict(size=14))
+    axs[1,0].text(0.2*bins[-1], 0.55*np.max(n), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$', fontdict=dict(size=14))
     axs[1,0].set_yscale('log')
     axs[1,0].minorticks_on()
     axs[1,0].set_xlabel(f'{ch1_name} - {ch2_name} ddf (ppm)')
@@ -238,7 +238,7 @@ def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
     window_pair_nums = np.arange(rdf1.size)
     axs[0].plot(window_pair_nums, rdf1_ppm)
     axs[1].plot(window_pair_nums, rdf2_ppm)
-    axs[1].plot(window_pair_nums, ddf_ppm)
+    axs[2].plot(window_pair_nums, ddf_ppm)
     axs[2].set_xlabel('Window pair number')
     axs[0].set_ylabel(f'{ch1_name} asymmetry (ppm)')
     axs[1].set_ylabel(f'{ch2_name} asymmetry (ppm)')

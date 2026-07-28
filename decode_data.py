@@ -5,6 +5,7 @@ from matplotlib.colors import LogNorm
 from scipy.signal.windows import blackman
 from scipy.optimize import curve_fit
 import sys, os
+from sigfig import round
 
 ACLK_FREQ = 125e6
 HEADER_WORDS = 2
@@ -156,20 +157,50 @@ def gate_means(data, times, gates):
 
     return means
 
-def plot_nice_ddf(ddfs, rdf1, rdf2, ch1_name, ch2_name, dir_path):
+def mygaussian(x, N, sigma, mu):
+    return N/(sigma*np.sqrt(2*np.pi)) * np.exp(-0.5*(x-mu)*(x-mu)/(sigma*sigma))
+
+def compute_resolution(ddf, num_bins=100):
+
+    n, bin_edges = np.histogram(ddf, bins=num_bins)
+    bin_centers = bin_edges[:-1] + 0.5*np.diff(bin_edges)
+
+    uncertainties = np.sqrt(n+1)
+
+ 
+
+    p0 = [np.sum(n), np.std(ddfs), 0]
+    popt_ddf, pcov = curve_fit(mygaussian, bin_centers, n, p0=p0, sigma=uncertainties, absolute_sigma=True)
+
+    resolution = 1/np.sqrt(2) * popt_ddf[1]
+    resolution_unc = np.sqrt(pcov[1,1])
+
+    residuals = (mygaussian(bin_centers, *popt_ddf) - n)**2 / (uncertainties**2)
+    chi2 = np.sum(residuals)
+    dof = n.size - p0.size
+
+    return resolution, resolution_unc, n, bin_centers, popt_ddf, pcov, residuals, chi2, dof
+
+def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
+
+    rdf1_ppm, rdf2_ppm = rdf1*1e6, rdf2*1e6
+    ddf = rdf1 - rdf2
+    ddf_ppm = ddf*1e6
+
+    res, res_unc, n_ddf, bin_centers, popt_ddf, _, residuals, chi2, dof = compute_resolution(ddf)
 
     fig, axs = plt.subplots(2,2, figsize=(10,8))
     fig.subplots_adjust(hspace=0)
     fig.subplots_adjust(wspace=0)
 
-    n, bins, _ = axs[0,0].hist(rdf1, bins=100, histtype='step', color='purple', orientation='horizontal')
-    axs[0,0].text(0.15*np.max(n), 0.85*bins[-1], f'$\\sigma={round(np.std(rdf1), 2)}$ ppm', fontdict=dict(size=14))
+    n, bins, _ = axs[0,0].hist(rdf1_ppm, bins=100, histtype='step', color='purple', orientation='horizontal')
+    axs[0,0].text(0.15*np.max(n), 0.85*bins[-1], f'$\\sigma={round(np.std(rdf1_ppm), sigfigs=3)}$ ppm', fontdict=dict(size=14))
     axs[0,0].set_xscale('log')
     axs[0,0].minorticks_on()
     axs[0,0].xaxis.tick_top()
-    axs[0,0].set_ylabel(f'{ch2_name} rel. diff. (ppm)')
+    axs[0,0].set_ylabel(f'{ch1_name} rel. diff. (ppm)')
 
-    h = axs[0,1].hist2d(rdf1, rdf2, bins=100, cmap='turbo', norm=LogNorm())
+    h = axs[0,1].hist2d(rdf1_ppm, rdf2_ppm, bins=100, cmap='turbo', norm=LogNorm())
     axs[0,1].set_xticks([])
     axs[0,1].set_yticks([])
     pos = axs[0, 1].get_position()
@@ -183,80 +214,45 @@ def plot_nice_ddf(ddfs, rdf1, rdf2, ch1_name, ch2_name, dir_path):
     ])
     fig.colorbar(h[3], cax=cbar_ax)
 
-    n, bins, _ = axs[1,0].hist(ddfs, bins=100, histtype='step', color='purple')
-    if np.std(ddfs) >= 0.5:
-        bin_centers = (bins[:-1] + 0.5*np.diff(bins))
-        def mygaussian(x, N, sigma, mu):
-            return N/(sigma*np.sqrt(2*np.pi)) * np.exp(-0.5*(x-mu)*(x-mu)/(sigma*sigma))
-        p0 = [np.sum(n), np.std(ddfs), 0]
-        popt_ddf, pcov = curve_fit(mygaussian, bin_centers, n, p0=p0)
-        mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
-        axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf), color='teal')
-    try:
-        axs[1,0].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(popt_ddf[1], 2)}$ ppm', fontdict=dict(size=14))
-        popt_ddf = None
-    except:
-        axs[1,0].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(np.std(ddfs), 2)}$ ppm', fontdict=dict(size=14))
-        # axs[1,0].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(np.std(ddfs), 2)}$ ppm', fontdict=dict(size=14))
+    bin_width = bin_centers[1] - bin_centers[0]
+    bin_edges = np.concatenate([bin_centers - 0.5*bin_width, bin_centers[-1] + 0.5*bin_width])
+    axs[1,0].stairs(n_ddf*1e6, bin_edges, fill=True)
+    mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
+    axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf), color='teal')
+    axs[1,0].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(res*1e6, res_unc*1e6)}$ ppm', fontdict=dict(size=14))
+    axs[1,1].text(0.2*bins[-1], 0.55*np.max(n), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$ ppm', fontdict=dict(size=14))
     axs[1,0].set_yscale('log')
     axs[1,0].minorticks_on()
     axs[1,0].set_xlabel(f'{ch1_name} - {ch2_name} ddf (ppm)')
 
-    n, bins, _ = axs[1,1].hist(rdf2, bins=100, histtype='step', color='purple')
-    axs[1,1].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(np.std(rdf2), 2)}$ ppm', fontdict=dict(size=14))
+    n, bins, _ = axs[1,1].hist(rdf2_ppm, bins=100, histtype='step', color='purple')
+    axs[1,1].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(np.std(rdf2_ppm), sigfigs=3)}$ ppm', fontdict=dict(size=14))
     axs[1,1].set_yscale('log')
     axs[1,1].minorticks_on()
     axs[1,1].yaxis.tick_right()
     axs[1,1].set_xlabel(f'{ch2_name} rel. diff (ppm)')
 
-    fig.savefig(dir_path + 'ddf_plot')
+    fig.savefig(dir_path + 'ddf_rdfs_hist_plot')
+
+    fig, axs = plt.subplots(3, 1, figsize=(10,8), sharex=True)
+    window_pair_nums = np.arange(rdf1.size)
+    axs[0].plot(window_pair_nums, rdf1_ppm)
+    axs[1].plot(window_pair_nums, rdf2_ppm)
+    axs[1].plot(window_pair_nums, ddf_ppm)
+    axs[2].set_xlabel('Window pair number')
+    axs[0].set_ylabel(f'{ch1_name} asymmetry (ppm)')
+    axs[1].set_ylabel(f'{ch2_name} asymmetry (ppm)')
+    axs[2].set_ylabel('ddf (ppm)')
+    for ax in axs:
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in',
+                    top=True, right=True)
+    fig.tight_layout()
+    fig.savefig(dir_path + 'ddf_rdfs_time_series_plot')
+
+
     
-    return
-
-# def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
-
-#     fig, ax = plt.subplots()
-#     ax.scatter(rdfs*1e6, ddfs*1e6, marker='.', color='black')
-#     ax.set_xlabel('RDF (ppm)')
-#     ax.set_ylabel('DDF (ppm)')
-#     ax.xaxis.set_ticks_position('both')
-#     ax.yaxis.set_ticks_position('both')
-#     ax.xaxis.minorticks_on()
-#     ax.yaxis.minorticks_on()
-#     fig.savefig(dir_path + 'ddf_vs_rdf_scatter')
-
-#     bins = np.linspace(rdfs.min(), rdfs.max(), 21)
-#     idx = np.digitize(rdfs, bins)
-
-#     centers, means, ses = [], [], []
-#     for b in range(1, len(bins)):
-#         sel = idx == b
-#         n = sel.sum()
-#         if n > 1:
-#             m = ddfs[sel].mean()
-#             se = ddfs[sel].std(ddof=1) / np.sqrt(n)
-#             center = 0.5 * (bins[b-1] + bins[b])
-#             centers.append(center)
-#             means.append(m)
-#             ses.append(se)
-#             print(f"{center*1e6:8.0f}  mean={m*1e6:7.3f}  se={se*1e6:6.3f}  ({m/se:+.1f} sigma)")
-
-#     centers = np.array(centers)
-#     means = np.array(means)
-#     ses = np.array(ses)
-
-#     fig, ax = plt.subplots()
-#     ax.errorbar(centers*1e6, means*1e6, yerr=ses*1e6, fmt='o', capsize=3, color='black')
-#     ax.axhline(0, color='red', linestyle='--', linewidth=1)
-#     ax.set_xlabel('RDF (ppm)')
-#     ax.set_ylabel('Binned mean DDF (ppm)')
-#     ax.xaxis.set_ticks_position('both')
-#     ax.yaxis.set_ticks_position('both')
-#     ax.xaxis.minorticks_on()
-#     ax.yaxis.minorticks_on()
-#     fig.savefig(dir_path + 'ddf_vs_rdf_residuals')
-
-#     return
+    return res, res_unc
 
 def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
 

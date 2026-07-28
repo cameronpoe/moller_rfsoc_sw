@@ -250,8 +250,6 @@ def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
     fig.tight_layout()
     fig.savefig(dir_path + 'ddf_rdfs_time_series_plot')
 
-
-    
     return res, res_unc
 
 def plot_diff_nonlinearity(rdfs, ddfs, dir_path):
@@ -417,9 +415,9 @@ OPTIONS
 
     ddfs = rdfs[2] - rdfs[3]
 
-    np.savez(tmp_dir_path + 'ddfs_rdfs_NEW', ddfs=ddfs, rdfs_elem2=rdfs[2], rdfs_elem3=rdfs[3]) 
+    res, res_unc = plot_resolution(rdfs[2], rdfs[3], 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
 
-    plot_resolution(rdfs[2], rdfs[3], 'Ch 2 RDF', 'Ch 1 RDF', tmp_dir_path)
+    np.savez(tmp_dir_path + 'processed_data', ddfs=ddfs, rdfs1=rdfs[2], rdfs2=rdfs[3], res=res, res_unc=res_unc, integrated_data=integrated_data) 
 
     #plot_diff_nonlinearity(rdfs[3], ddfs/np.sqrt(2), tmp_dir_path)
 

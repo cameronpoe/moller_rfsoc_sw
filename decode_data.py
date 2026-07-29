@@ -216,11 +216,11 @@ def plot_resolution(rdf1, rdf2, ch1_name, ch2_name, dir_path):
 
     bin_width = bin_centers[1] - bin_centers[0]
     bin_edges = np.concatenate([bin_centers - 0.5*bin_width, np.array([bin_centers[-1] + 0.5*bin_width])])
-    axs[1,0].stairs(n_ddf*1e6, bin_edges, fill=False, color='purple')
+    axs[1,0].stairs(n_ddf, bin_edges*1e6, fill=False, color='purple')
     mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
-    axs[1,0].plot(mygauss_domain, mygaussian(mygauss_domain, *popt_ddf)*1e6, color='teal')
-    axs[1,0].text(0.2*bin_centers[-1], 0.75*np.max(n_ddf*1e6), f'$\\sigma={round(res*1e6, res_unc*1e6)}$ ppm', fontdict=dict(size=14))
-    axs[1,0].text(0.32*bin_centers[-1], 0.15*np.max(n_ddf*1e6), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$', fontdict=dict(size=14))
+    axs[1,0].plot(mygauss_domain*1e6, mygaussian(mygauss_domain, *popt_ddf), color='teal')
+    axs[1,0].text(0.2*bin_centers[-1]*1e6, 0.75*np.max(n_ddf), f'$\\sigma={round(res*1e6, res_unc*1e6)}$ ppm', fontdict=dict(size=14))
+    axs[1,0].text(0.32*bin_centers[-1]*1e6, 0.15*np.max(n_ddf), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$', fontdict=dict(size=14))
     axs[1,0].set_yscale('log')
     axs[1,0].minorticks_on()
     axs[1,0].set_xlabel(f'{ch1_name} - {ch2_name} ddf (ppm)')

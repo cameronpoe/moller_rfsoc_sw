@@ -187,7 +187,7 @@ int process_to_dc(
  * @param[in] n_samples Number of elements in packets.
  * @param[in] start_ts Inclusive timestamp at the beginning of the window.
  * @param[in] end_ts Exclusive timestamp at the end of the window.
- * @param[out] out Output array of timestamped real-valued DC samples.
+ * @param[out] out Output array of timestamped real-valued DC samples. 
  * @param[out] n_out Number of valid samples written to out.
  * @param[in] samp_freq Sampling frequency, in hertz.
  * @param[in] channel Physical ADC channel index in the range 0 through 3.

@@ -87,80 +87,56 @@ int process_to_dc(
 	int channel,
 	bool fft_flag,
 	size_t fft_len) {
-	/* Validate all input and output pointers. The output sample count is
-	 * initialized to zero so that the caller never observes an
-	 * uninitialized value if an error occurs.
-	 */
+	/* Keep the public interface and output semantics unchanged. */
 	if (!packets || !out || !n_out || n_samples == 0)
 		return -1;
+	if (channel < 0 || channel > 3)
+		return -3;
 
 	*n_out = 0;
-	/* Allocate temporary storage for the timestamped I/Q data and
-	 * a separate contiguous complex signal array.
-	 */
-	timestamped_iq_t *iq_data =
-		(timestamped_iq_t *)calloc(n_samples, sizeof(timestamped_iq_t));
-	double complex *sig =
-		(double complex *)calloc(n_samples, sizeof(double complex));
 
-	if (!iq_data || !sig) {
-		free(iq_data);
-		free(sig);
-		return -2;
-	}
-
-	/* Extract the selected physical ADC channel as complex I/Q data. */
-	if (get_iq_data_from_packets_ts(packets, n_samples, channel, iq_data) !=
-		0) {
-		free(iq_data);
-		free(sig);
-		return -3;
-	}
-
-	double complex mean = 0.0 + 0.0 * I;
-
-	/* Copy the complex samples into the working array, preserve all
-	 * timestamps, and accumulate the complex signal mean.
-	 */
-	for (size_t i = 0; i < n_samples; i++) {
-		sig[i] = iq_data[i].sig;
-		out[i].ts = iq_data[i].ts;
-
-		mean += sig[i];
-	}
-
-	/* Determine whether the extracted signal is already sufficiently
-	 * constant in amplitude and phase to be treated as DC.
-	 */
-	mean /= (double)n_samples;
-
-	// bool sig_dc = check_if_dc(sig, n_samples, PHASE_LIM, REL_LIM);
-	// if (!sig_dc && fft_flag == true) {
-	if (fft_flag == false) {
+	if (fft_flag) {
+		/*
+		 * FFT is a diagnostic path. Allocate its contiguous complex input
+		 * only when the caller explicitly requests FFT processing.
+		 */
 		/* FFT down-conversion requires a nonzero power-of-two
 		 * block length.
 		 */
 		printf("FFT invoked\n");
-		if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0) {
-			free(iq_data);
-			free(sig);
+		if (fft_len == 0 || (fft_len & (fft_len - 1)) != 0)
 			return -4;
-		}
 
 		/* At least one complete FFT block must fit in the signal. */
-		if (fft_len > n_samples) {
-			free(iq_data);
-			free(sig);
+		if (fft_len > n_samples)
 			return -5;
+
+		double complex *sig =
+			(double complex *)malloc(n_samples * sizeof(*sig));
+		if (!sig)
+			return -2;
+
+		for (size_t i = 0; i < n_samples; i++) {
+			const adc_frame_t *frame = &packets[i].data;
+			const adc24_t *i_adc =
+				get_adc24_channel(frame, 2 * channel);
+			const adc24_t *q_adc =
+				get_adc24_channel(frame, 2 * channel + 1);
+
+			if (!i_adc || !q_adc) {
+				free(sig);
+				return -3;
+			}
+
+			sig[i] = (double)adc24_to_int32(*i_adc) +
+				I * (double)adc24_to_int32(*q_adc);
 		}
 
 		/* Allocate storage for the real-valued down-converted signal.
 		 */
-		double *real = (double *)calloc(n_samples, sizeof(double));
+		double *real = (double *)malloc(n_samples * sizeof(*real));
 
 		if (!real) {
-			free(real);
-			free(iq_data);
 			free(sig);
 			return -6;
 		}
@@ -176,7 +152,6 @@ int process_to_dc(
 
 			if (s != 0) {
 				free(real);
-				free(iq_data);
 				free(sig);
 				return -7;
 			}
@@ -187,7 +162,7 @@ int process_to_dc(
 		 * incomplete trailing block is discarded.
 		 */
 		for (size_t i = 0; i < usable; i++) {
-			out[i].ts = iq_data[i].ts;
+			out[i].ts = packets[i].ts;
 			out[i].sig = real[i];
 		}
 
@@ -195,28 +170,63 @@ int process_to_dc(
 		*n_out = usable;
 
 		free(real);
-		free(iq_data);
 		free(sig);
 
 		return 0;
 	}
 
-	/* The signal is already at DC. Remove its residual constant phase
-	 * so that the complex mean lies on the positive real axis.
+	/*
+	 * Fast no-FFT path, pass 1: accumulate I and Q directly from the
+	 * packet array. This replaces iq_data and sig, avoiding two large
+	 * allocations and the associated memory traffic.
 	 */
-	double complex rot = cexp(-I * carg(mean));
+	double sum_i = 0.0;
+	double sum_q = 0.0;
 
-	/* Rotate the signal so that its mean lies on the positive real axis,
-	 * then retain only the real component.
+	for (size_t i = 0; i < n_samples; i++) {
+		const adc_frame_t *frame = &packets[i].data;
+		const adc24_t *i_adc = get_adc24_channel(frame, 2 * channel);
+		const adc24_t *q_adc = get_adc24_channel(frame, 2 * channel + 1);
+
+		if (!i_adc || !q_adc)
+			return -3;
+
+		sum_i += (double)adc24_to_int32(*i_adc);
+		sum_q += (double)adc24_to_int32(*q_adc);
+	}
+
+	/*
+	 * cexp(-I * carg(mean)) is exactly the normalized conjugate of the
+	 * mean. The factor 1/n_samples cancels during normalization, so the
+	 * sums can be used directly. If the mean is exactly zero, preserve
+	 * the old effective behavior: do not rotate the signal.
+	 */
+	const double magnitude = hypot(sum_i, sum_q);
+	double rot_re = 1.0;
+	double rot_im = 0.0;
+
+	if (magnitude != 0.0) {
+		rot_re = sum_i / magnitude;
+		rot_im = -sum_q / magnitude;
+	}
+
+	/*
+	 * Fast no-FFT path, pass 2: extract, rotate and write each sample
+	 * directly to the caller-provided output buffer.
 	 */
 	for (size_t i = 0; i < n_samples; i++) {
-		out[i].sig = creal(sig[i] * rot);
+		const adc_frame_t *frame = &packets[i].data;
+		const adc24_t *i_adc = get_adc24_channel(frame, 2 * channel);
+		const adc24_t *q_adc = get_adc24_channel(frame, 2 * channel + 1);
+		const double sample_i = (double)adc24_to_int32(*i_adc);
+		const double sample_q = (double)adc24_to_int32(*q_adc);
+
+		out[i].ts = packets[i].ts;
+		out[i].sig = sample_i * rot_re - sample_q * rot_im;
 	}
 
 	/* Every input sample produced one output sample. */
 	*n_out = n_samples;
-	free(iq_data);
-	free(sig);
 	return 0;
 }
 

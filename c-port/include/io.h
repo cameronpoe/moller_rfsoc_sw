@@ -31,64 +31,114 @@
  * @note The function assumes that b0 is the most-significant byte
  * and b2 is the least-significant byte in each adc24_t value.
  */
+// static inline adc_frame_t adc_frame_parser(
+// 	uint64_t word1,
+// 	uint64_t word2,
+// 	uint64_t word3) {
+// 	/* Reverse the byte order of each incoming 64-bit word to match
+// 	 * the byte ordering used by the ADC data format.
+// 	 */
+// 	uint64_t tmp1 = __builtin_bswap64(word1);
+// 	uint64_t tmp2 = __builtin_bswap64(word2);
+// 	uint64_t tmp3 = __builtin_bswap64(word3);
+
+// 	/* Extract the eight individual bytes from the first data word,
+// 	 * beginning with its least-significant byte after byte swapping.
+// 	 */
+// 	uint8_t b0 = tmp1 & 0xFF;
+// 	uint8_t b1 = (tmp1 >> 8) & 0xFF;
+// 	uint8_t b2 = (tmp1 >> 16) & 0xFF;
+// 	uint8_t b3 = (tmp1 >> 24) & 0xFF;
+// 	uint8_t b4 = (tmp1 >> 32) & 0xFF;
+// 	uint8_t b5 = (tmp1 >> 40) & 0xFF;
+// 	uint8_t b6 = (tmp1 >> 48) & 0xFF;
+// 	uint8_t b7 = (tmp1 >> 56) & 0xFF;
+
+// 	/* Extract the eight individual bytes from the second data word. */
+// 	uint8_t b0_s = tmp2 & 0xFF;
+// 	uint8_t b1_s = (tmp2 >> 8) & 0xFF;
+// 	uint8_t b2_s = (tmp2 >> 16) & 0xFF;
+// 	uint8_t b3_s = (tmp2 >> 24) & 0xFF;
+// 	uint8_t b4_s = (tmp2 >> 32) & 0xFF;
+// 	uint8_t b5_s = (tmp2 >> 40) & 0xFF;
+// 	uint8_t b6_s = (tmp2 >> 48) & 0xFF;
+// 	uint8_t b7_s = (tmp2 >> 56) & 0xFF;
+
+// 	/* Extract the eight individual bytes from the third data word. */
+// 	uint8_t b0_t = tmp3 & 0xFF;
+// 	uint8_t b1_t = (tmp3 >> 8) & 0xFF;
+// 	uint8_t b2_t = (tmp3 >> 16) & 0xFF;
+// 	uint8_t b3_t = (tmp3 >> 24) & 0xFF;
+// 	uint8_t b4_t = (tmp3 >> 32) & 0xFF;
+// 	uint8_t b5_t = (tmp3 >> 40) & 0xFF;
+// 	uint8_t b6_t = (tmp3 >> 48) & 0xFF;
+// 	uint8_t b7_t = (tmp3 >> 56) & 0xFF;
+
+// 	/* Reassemble the 24 extracted bytes into eight consecutive
+// 	 * three-byte ADC channel values.
+// 	 */
+// 	adc_frame_t output;
+
+// 	output.ch0 = make_adc24(b0, b1, b2);
+// 	output.ch1 = make_adc24(b3, b4, b5);
+// 	output.ch2 = make_adc24(b6, b7, b0_s);
+// 	output.ch3 = make_adc24(b1_s, b2_s, b3_s);
+// 	output.ch4 = make_adc24(b4_s, b5_s, b6_s);
+// 	output.ch5 = make_adc24(b7_s, b0_t, b1_t);
+// 	output.ch6 = make_adc24(b2_t, b3_t, b4_t);
+// 	output.ch7 = make_adc24(b5_t, b6_t, b7_t);
+
+// 	return output;
+// }
+
 static inline adc_frame_t adc_frame_parser(
-	uint64_t word1,
-	uint64_t word2,
-	uint64_t word3) {
-	/* Reverse the byte order of each incoming 64-bit word to match
-	 * the byte ordering used by the ADC data format.
-	 */
-	uint64_t tmp1 = __builtin_bswap64(word1);
-	uint64_t tmp2 = __builtin_bswap64(word2);
-	uint64_t tmp3 = __builtin_bswap64(word3);
+    uint64_t word1,
+    uint64_t word2,
+    uint64_t word3)
+{
+    adc_frame_t output;
 
-	/* Extract the eight individual bytes from the first data word,
-	 * beginning with its least-significant byte after byte swapping.
-	 */
-	uint8_t b0 = tmp1 & 0xFF;
-	uint8_t b1 = (tmp1 >> 8) & 0xFF;
-	uint8_t b2 = (tmp1 >> 16) & 0xFF;
-	uint8_t b3 = (tmp1 >> 24) & 0xFF;
-	uint8_t b4 = (tmp1 >> 32) & 0xFF;
-	uint8_t b5 = (tmp1 >> 40) & 0xFF;
-	uint8_t b6 = (tmp1 >> 48) & 0xFF;
-	uint8_t b7 = (tmp1 >> 56) & 0xFF;
+    output.ch0 = make_adc24(
+        word1 >> 56,
+        word1 >> 48,
+        word1 >> 40);
 
-	/* Extract the eight individual bytes from the second data word. */
-	uint8_t b0_s = tmp2 & 0xFF;
-	uint8_t b1_s = (tmp2 >> 8) & 0xFF;
-	uint8_t b2_s = (tmp2 >> 16) & 0xFF;
-	uint8_t b3_s = (tmp2 >> 24) & 0xFF;
-	uint8_t b4_s = (tmp2 >> 32) & 0xFF;
-	uint8_t b5_s = (tmp2 >> 40) & 0xFF;
-	uint8_t b6_s = (tmp2 >> 48) & 0xFF;
-	uint8_t b7_s = (tmp2 >> 56) & 0xFF;
+    output.ch1 = make_adc24(
+        word1 >> 32,
+        word1 >> 24,
+        word1 >> 16);
 
-	/* Extract the eight individual bytes from the third data word. */
-	uint8_t b0_t = tmp3 & 0xFF;
-	uint8_t b1_t = (tmp3 >> 8) & 0xFF;
-	uint8_t b2_t = (tmp3 >> 16) & 0xFF;
-	uint8_t b3_t = (tmp3 >> 24) & 0xFF;
-	uint8_t b4_t = (tmp3 >> 32) & 0xFF;
-	uint8_t b5_t = (tmp3 >> 40) & 0xFF;
-	uint8_t b6_t = (tmp3 >> 48) & 0xFF;
-	uint8_t b7_t = (tmp3 >> 56) & 0xFF;
+    output.ch2 = make_adc24(
+        word1 >> 8,
+        word1,
+        word2 >> 56);
 
-	/* Reassemble the 24 extracted bytes into eight consecutive
-	 * three-byte ADC channel values.
-	 */
-	adc_frame_t output;
+    output.ch3 = make_adc24(
+        word2 >> 48,
+        word2 >> 40,
+        word2 >> 32);
 
-	output.ch0 = make_adc24(b0, b1, b2);
-	output.ch1 = make_adc24(b3, b4, b5);
-	output.ch2 = make_adc24(b6, b7, b0_s);
-	output.ch3 = make_adc24(b1_s, b2_s, b3_s);
-	output.ch4 = make_adc24(b4_s, b5_s, b6_s);
-	output.ch5 = make_adc24(b7_s, b0_t, b1_t);
-	output.ch6 = make_adc24(b2_t, b3_t, b4_t);
-	output.ch7 = make_adc24(b5_t, b6_t, b7_t);
+    output.ch4 = make_adc24(
+        word2 >> 24,
+        word2 >> 16,
+        word2 >> 8);
 
-	return output;
+    output.ch5 = make_adc24(
+        word2,
+        word3 >> 56,
+        word3 >> 48);
+
+    output.ch6 = make_adc24(
+        word3 >> 40,
+        word3 >> 32,
+        word3 >> 24);
+
+    output.ch7 = make_adc24(
+        word3 >> 16,
+        word3 >> 8,
+        word3);
+
+    return output;
 }
 
 /**

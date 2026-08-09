@@ -94,6 +94,10 @@ typedef struct {
 	adc_frame_t data; /**< ADC frame recorded at this timestamp */
 } adc_sample_t;
 
+typedef struct {
+	adc_frame_t data;
+	uint64_t ts; 
+} adc_sample_test_t;
 /**
  * @brief Helicity window.
  *

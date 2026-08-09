@@ -231,6 +231,13 @@ int adc_packet_parser_v2(
 	size_t words_per_dma_packet,
 	adc_sample_t *output);
 
+
+int adc_packet_parser_v3_beta(
+    const uint64_t *raw_data, 
+    size_t num_words, 
+    size_t words_per_dma_packet, 
+    adc_sample_test_t *output
+);
 /**
  * @brief Parses an array of raw gate-event words.
  *

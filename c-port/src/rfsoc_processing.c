@@ -141,7 +141,7 @@ int process_dma_buffer(
 
 	clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
-	status = adc_packet_parser_v2(
+	status = adc_packet_parser_v3_beta(
 		adc_words, complete_adc_words, n_words_per_packet, samples);
 
 	clock_gettime(CLOCK_MONOTONIC, &stage_end);
@@ -234,309 +234,309 @@ int process_dma_buffer(
 		goto cleanup;
 	}
 
-	int_ch2 = malloc(n_windows * sizeof(*int_ch2));
-	int_ch3 = malloc(n_windows * sizeof(*int_ch3));
+	// int_ch2 = malloc(n_windows * sizeof(*int_ch2));
+	// int_ch3 = malloc(n_windows * sizeof(*int_ch3));
 
-	if (!int_ch2 || !int_ch3) {
-		fprintf(stderr, "Failed to allocate integration buffers.\n");
-		status = -5;
-		goto cleanup;
-	}
+	// if (!int_ch2 || !int_ch3) {
+	// 	fprintf(stderr, "Failed to allocate integration buffers.\n");
+	// 	status = -5;
+	// 	goto cleanup;
+	// }
 
 	clock_gettime(CLOCK_MONOTONIC, &stage_end);
 	gate_seconds = elapsed_seconds(&stage_start, &stage_end);
 
-	/*
-	 * Each worker reads the shared samples array, but writes to its
-	 * own output array and its own job structure.
-	 */
-	dc_job_t job2 = {.samples = samples,
-		.n_samples = n_samples,
-		.channel = 2,
-		.fft_enabled = fft_enabled,
-		.fft_len = fft_len,
-		.n_out = 0,
-		.out = dc_ch2,
-		.status = -1};
+	// /*
+	//  * Each worker reads the shared samples array, but writes to its
+	//  * own output array and its own job structure.
+	//  */
+	// dc_job_t job2 = {.samples = samples,
+	// 	.n_samples = n_samples,
+	// 	.channel = 2,
+	// 	.fft_enabled = fft_enabled,
+	// 	.fft_len = fft_len,
+	// 	.n_out = 0,
+	// 	.out = dc_ch2,
+	// 	.status = -1};
 
-	dc_job_t job3 = {.samples = samples,
-		.n_samples = n_samples,
-		.channel = 3,
-		.fft_enabled = fft_enabled,
-		.fft_len = fft_len,
-		.n_out = 0,
-		.out = dc_ch3,
-		.status = -1};
+	// dc_job_t job3 = {.samples = samples,
+	// 	.n_samples = n_samples,
+	// 	.channel = 3,
+	// 	.fft_enabled = fft_enabled,
+	// 	.fft_len = fft_len,
+	// 	.n_out = 0,
+	// 	.out = dc_ch3,
+	// 	.status = -1};
 	
-	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+	// clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
-	int thread_status = pthread_create(&thread2, NULL, dc_worker, &job2);
+	// int thread_status = pthread_create(&thread2, NULL, dc_worker, &job2);
 
-	if (thread_status != 0) {
-		fprintf(stderr,
-			"pthread_create(channel 2): %s\n",
-			strerror(thread_status));
-		status = -6;
-		goto cleanup;
-	}
-
-	thread2_started = true;
-
-	thread_status = pthread_create(&thread3, NULL, dc_worker, &job3);
-
-	if (thread_status != 0) {
-		fprintf(stderr,
-			"pthread_create(channel 3): %s\n",
-			strerror(thread_status));
-
-		status = -6;
-
-		/*
-		 * Channel 2 is already running. We must wait for it before
-		 * freeing samples, dc_ch2 or job2.
-		 */
-		goto cleanup;
-	}
-
-	thread3_started = true;
-
-	thread_status = pthread_join(thread2, NULL);
-
-	if (thread_status != 0) {
-		fprintf(stderr,
-			"pthread_join(channel 2): %s\n",
-			strerror(thread_status));
-		status = -7;
-		goto cleanup;
-	}
-
-	thread2_started = false;
-
-	thread_status = pthread_join(thread3, NULL);
-
-	if (thread_status != 0) {
-		fprintf(stderr,
-			"pthread_join(channel 3): %s\n",
-			strerror(thread_status));
-		status = -7;
-		goto cleanup;
-	}
-
-	thread3_started = false;
-	clock_gettime(CLOCK_MONOTONIC, &stage_end);
-	dc_seconds = elapsed_seconds(&stage_start, &stage_end);
-
-	if (job2.status != 0 || job3.status != 0) {
-		fprintf(stderr,
-			"process_to_dc failed: channel 2=%d, channel 3=%d\n",
-			job2.status,
-			job3.status);
-		status = -8;
-		goto cleanup;
-	}
-
-	if (job2.n_out != job3.n_out) {
-		fprintf(stderr,
-			"DC output sizes differ: channel 2=%zu, channel "
-			"3=%zu\n",
-			job2.n_out,
-			job3.n_out);
-		status = -8;
-		goto cleanup;
-	}
-
-	integration_job_t int_job2 = {.data = dc_ch2,
-		.n_samples = job2.n_out,
-		.windows = windows,
-		.n_windows = n_windows,
-		.out = int_ch2,
-		.status = -1};
-
-	integration_job_t int_job3 = {.data = dc_ch3,
-		.n_samples = job3.n_out,
-		.windows = windows,
-		.n_windows = n_windows,
-		.out = int_ch3,
-		.status = -1};
-
-	pthread_t int_thread2;
-	pthread_t int_thread3;
-
-	clock_gettime(CLOCK_MONOTONIC, &stage_start);
-
-	int thread_status2 = pthread_create(
-		&int_thread2, NULL, integration_worker, &int_job2);
-	int thread_status3 = pthread_create(
-		&int_thread3, NULL, integration_worker, &int_job3);
-
-	if (thread_status2 != 0 || thread_status3 != 0) {
-		fprintf(stderr,
-			"Failed to create integration threads: ch2=%s, ch3=%s\n",
-			thread_status2 == 0 ? "ok" : strerror(thread_status2),
-			thread_status3 == 0 ? "ok" : strerror(thread_status3));
-
-		if (thread_status2 == 0) {
-			pthread_join(int_thread2, NULL);
-		}
-		if (thread_status3 == 0) {
-			pthread_join(int_thread3, NULL);
-		}
-
-		status = -9;
-		goto cleanup;
-	}
-
-	thread_status2 = pthread_join(int_thread2, NULL);
-	thread_status3 = pthread_join(int_thread3, NULL);
-
-	clock_gettime(CLOCK_MONOTONIC, &stage_end);
-	integration_seconds = elapsed_seconds(&stage_start, &stage_end);
-
-	if (thread_status2 != 0 || thread_status3 != 0 ||
-		int_job2.status != 0 || int_job3.status != 0) {
-		fprintf(stderr,
-			"Integration failed: join2=%d, join3=%d, ch2=%d, ch3=%d\n",
-			thread_status2,
-			thread_status3,
-			int_job2.status,
-			int_job3.status);
-		status = -9;
-		goto cleanup;
-	}
-
-	// status = integrate_windows_sorted(
-	// 	dc_ch2, job2.n_out, windows, n_windows, int_ch2);
-
-	// if (status != 0) {
-	// 	fprintf(stderr, "Channel 2 integration failed: %d\n", status);
+	// if (thread_status != 0) {
+	// 	fprintf(stderr,
+	// 		"pthread_create(channel 2): %s\n",
+	// 		strerror(thread_status));
+	// 	status = -6;
 	// 	goto cleanup;
 	// }
 
-	// status = integrate_windows_sorted(
-	// 	dc_ch3, job3.n_out, windows, n_windows, int_ch3);
+	// thread2_started = true;
 
-	// if (status != 0) {
-	// 	fprintf(stderr, "Channel 3 integration failed: %d\n", status);
+	// thread_status = pthread_create(&thread3, NULL, dc_worker, &job3);
+
+	// if (thread_status != 0) {
+	// 	fprintf(stderr,
+	// 		"pthread_create(channel 3): %s\n",
+	// 		strerror(thread_status));
+
+	// 	status = -6;
+
+	// 	/*
+	// 	 * Channel 2 is already running. We must wait for it before
+	// 	 * freeing samples, dc_ch2 or job2.
+	// 	 */
 	// 	goto cleanup;
 	// }
-	clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
-	size_t max_pairs = n_windows / 2;
+	// thread3_started = true;
 
-	rdf2_ppm = malloc(max_pairs * sizeof(*rdf2_ppm));
-	rdf3_ppm = malloc(max_pairs * sizeof(*rdf3_ppm));
-	ddf_ppm = malloc(max_pairs * sizeof(*ddf_ppm));
+	// thread_status = pthread_join(thread2, NULL);
 
-	if ((!rdf2_ppm || !rdf3_ppm || !ddf_ppm) && max_pairs != 0) {
-		fprintf(stderr, "Failed to allocate RDF/DDF arrays.\n");
-		status = -9;
-		goto cleanup;
-	}
-
-	size_t n_valid_pairs = 0;
-
-	for (size_t even = 0; even + 1 < n_windows; even += 2) {
-		size_t odd = even + 1;
-
-		/*
-		 * integrate_windows_sorted() has already calculated mean for
-		 * every window.
-		 */
-		if (int_ch2[even].n_samples == 0 ||
-			int_ch2[odd].n_samples == 0 ||
-			int_ch3[even].n_samples == 0 ||
-			int_ch3[odd].n_samples == 0) {
-			continue;
-		}
-
-		double ch2_even = int_ch2[even].mean;
-		double ch2_odd = int_ch2[odd].mean;
-		double ch3_even = int_ch3[even].mean;
-		double ch3_odd = int_ch3[odd].mean;
-
-		double denominator2 = ch2_even + ch2_odd;
-		double denominator3 = ch3_even + ch3_odd;
-
-		if (denominator2 == 0.0 || denominator3 == 0.0) {
-			continue;
-		}
-
-		double rdf2 = (ch2_even - ch2_odd) / denominator2;
-
-		double rdf3 = (ch3_even - ch3_odd) / denominator3;
-
-		double ddf = rdf2 - rdf3;
-
-		/*
-		 * Convert the dimensionless values to parts per million.
-		 */
-		rdf2_ppm[n_valid_pairs] = rdf2 * 1e6;
-		rdf3_ppm[n_valid_pairs] = rdf3 * 1e6;
-		ddf_ppm[n_valid_pairs] = ddf * 1e6;
-
-		// printf("pair=%zu rdf2_ppm=%.9f rdf3_ppm=%.9f ddf_ppm=%.9f\n",
-		// 	n_valid_pairs,
-		// 	rdf2_ppm[n_valid_pairs],
-		// 	rdf3_ppm[n_valid_pairs],
-		// 	ddf_ppm[n_valid_pairs]);
-
-		n_valid_pairs++;
-	}
-
-	if (n_valid_pairs == 0) {
-		fprintf(stderr,
-			"No valid pairs available for resolution "
-			"calculation.\n");
-		status = -10;
-		goto cleanup;
-	}
-
-	double rdf2_resolution = standard_deviation(rdf2_ppm, n_valid_pairs);
-
-	double rdf3_resolution = standard_deviation(rdf3_ppm, n_valid_pairs);
-
-	double ddf_resolution =
-		standard_deviation(ddf_ppm, n_valid_pairs) / sqrt(2.0);
-
-	clock_gettime(CLOCK_MONOTONIC, &stage_end);
-	rdf_seconds = elapsed_seconds(&stage_start, &stage_end);
-
-	printf("\nResolution results:\n");
-	printf("Valid pairs:     %zu\n", n_valid_pairs);
-	printf("RDF2 resolution: %.9f ppm\n", rdf2_resolution);
-	printf("RDF3 resolution: %.9f ppm\n", rdf3_resolution);
-	printf("DDF resolution:  %.9f ppm\n", ddf_resolution);
-
-	/*
-	 * Temporary terminal output instead of CSV.
-	 */
-	// printf(
-	//     "window,start_ts,end_ts,"
-	//     "ch2_sum,ch2_mean,ch2_samples,"
-	//     "ch3_sum,ch3_mean,ch3_samples\n"
-	// );
-
-	// for (size_t i = 0; i < n_windows; i++) {
-	//     printf(
-	//         "%zu,%" PRIu64 ",%" PRIu64 ","
-	//         "%.17g,%.17g,%zu,"
-	//         "%.17g,%.17g,%zu\n",
-	//         i,
-	//         windows[i].start_ts,
-	//         windows[i].end_ts,
-	//         int_ch2[i].sum,
-	//         int_ch2[i].mean,
-	//         int_ch2[i].n_samples,
-	//         int_ch3[i].sum,
-	//         int_ch3[i].mean,
-	//         int_ch3[i].n_samples
-	//     );
+	// if (thread_status != 0) {
+	// 	fprintf(stderr,
+	// 		"pthread_join(channel 2): %s\n",
+	// 		strerror(thread_status));
+	// 	status = -7;
+	// 	goto cleanup;
 	// }
+
+	// thread2_started = false;
+
+	// thread_status = pthread_join(thread3, NULL);
+
+	// if (thread_status != 0) {
+	// 	fprintf(stderr,
+	// 		"pthread_join(channel 3): %s\n",
+	// 		strerror(thread_status));
+	// 	status = -7;
+	// 	goto cleanup;
+	// }
+
+	// thread3_started = false;
+	// clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	// dc_seconds = elapsed_seconds(&stage_start, &stage_end);
+
+	// if (job2.status != 0 || job3.status != 0) {
+	// 	fprintf(stderr,
+	// 		"process_to_dc failed: channel 2=%d, channel 3=%d\n",
+	// 		job2.status,
+	// 		job3.status);
+	// 	status = -8;
+	// 	goto cleanup;
+	// }
+
+	// if (job2.n_out != job3.n_out) {
+	// 	fprintf(stderr,
+	// 		"DC output sizes differ: channel 2=%zu, channel "
+	// 		"3=%zu\n",
+	// 		job2.n_out,
+	// 		job3.n_out);
+	// 	status = -8;
+	// 	goto cleanup;
+	// }
+
+	// integration_job_t int_job2 = {.data = dc_ch2,
+	// 	.n_samples = job2.n_out,
+	// 	.windows = windows,
+	// 	.n_windows = n_windows,
+	// 	.out = int_ch2,
+	// 	.status = -1};
+
+	// integration_job_t int_job3 = {.data = dc_ch3,
+	// 	.n_samples = job3.n_out,
+	// 	.windows = windows,
+	// 	.n_windows = n_windows,
+	// 	.out = int_ch3,
+	// 	.status = -1};
+
+	// pthread_t int_thread2;
+	// pthread_t int_thread3;
+
+	// clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
+	// int thread_status2 = pthread_create(
+	// 	&int_thread2, NULL, integration_worker, &int_job2);
+	// int thread_status3 = pthread_create(
+	// 	&int_thread3, NULL, integration_worker, &int_job3);
+
+	// if (thread_status2 != 0 || thread_status3 != 0) {
+	// 	fprintf(stderr,
+	// 		"Failed to create integration threads: ch2=%s, ch3=%s\n",
+	// 		thread_status2 == 0 ? "ok" : strerror(thread_status2),
+	// 		thread_status3 == 0 ? "ok" : strerror(thread_status3));
+
+	// 	if (thread_status2 == 0) {
+	// 		pthread_join(int_thread2, NULL);
+	// 	}
+	// 	if (thread_status3 == 0) {
+	// 		pthread_join(int_thread3, NULL);
+	// 	}
+
+	// 	status = -9;
+	// 	goto cleanup;
+	// }
+
+	// thread_status2 = pthread_join(int_thread2, NULL);
+	// thread_status3 = pthread_join(int_thread3, NULL);
+
+	// clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	// integration_seconds = elapsed_seconds(&stage_start, &stage_end);
+
+	// if (thread_status2 != 0 || thread_status3 != 0 ||
+	// 	int_job2.status != 0 || int_job3.status != 0) {
+	// 	fprintf(stderr,
+	// 		"Integration failed: join2=%d, join3=%d, ch2=%d, ch3=%d\n",
+	// 		thread_status2,
+	// 		thread_status3,
+	// 		int_job2.status,
+	// 		int_job3.status);
+	// 	status = -9;
+	// 	goto cleanup;
+	// }
+
+	// // status = integrate_windows_sorted(
+	// // 	dc_ch2, job2.n_out, windows, n_windows, int_ch2);
+
+	// // if (status != 0) {
+	// // 	fprintf(stderr, "Channel 2 integration failed: %d\n", status);
+	// // 	goto cleanup;
+	// // }
+
+	// // status = integrate_windows_sorted(
+	// // 	dc_ch3, job3.n_out, windows, n_windows, int_ch3);
+
+	// // if (status != 0) {
+	// // 	fprintf(stderr, "Channel 3 integration failed: %d\n", status);
+	// // 	goto cleanup;
+	// // }
+	// clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
+	// size_t max_pairs = n_windows / 2;
+
+	// rdf2_ppm = malloc(max_pairs * sizeof(*rdf2_ppm));
+	// rdf3_ppm = malloc(max_pairs * sizeof(*rdf3_ppm));
+	// ddf_ppm = malloc(max_pairs * sizeof(*ddf_ppm));
+
+	// if ((!rdf2_ppm || !rdf3_ppm || !ddf_ppm) && max_pairs != 0) {
+	// 	fprintf(stderr, "Failed to allocate RDF/DDF arrays.\n");
+	// 	status = -9;
+	// 	goto cleanup;
+	// }
+
+	// size_t n_valid_pairs = 0;
+
+	// for (size_t even = 0; even + 1 < n_windows; even += 2) {
+	// 	size_t odd = even + 1;
+
+	// 	/*
+	// 	 * integrate_windows_sorted() has already calculated mean for
+	// 	 * every window.
+	// 	 */
+	// 	if (int_ch2[even].n_samples == 0 ||
+	// 		int_ch2[odd].n_samples == 0 ||
+	// 		int_ch3[even].n_samples == 0 ||
+	// 		int_ch3[odd].n_samples == 0) {
+	// 		continue;
+	// 	}
+
+	// 	double ch2_even = int_ch2[even].mean;
+	// 	double ch2_odd = int_ch2[odd].mean;
+	// 	double ch3_even = int_ch3[even].mean;
+	// 	double ch3_odd = int_ch3[odd].mean;
+
+	// 	double denominator2 = ch2_even + ch2_odd;
+	// 	double denominator3 = ch3_even + ch3_odd;
+
+	// 	if (denominator2 == 0.0 || denominator3 == 0.0) {
+	// 		continue;
+	// 	}
+
+	// 	double rdf2 = (ch2_even - ch2_odd) / denominator2;
+
+	// 	double rdf3 = (ch3_even - ch3_odd) / denominator3;
+
+	// 	double ddf = rdf2 - rdf3;
+
+	// 	/*
+	// 	 * Convert the dimensionless values to parts per million.
+	// 	 */
+	// 	rdf2_ppm[n_valid_pairs] = rdf2 * 1e6;
+	// 	rdf3_ppm[n_valid_pairs] = rdf3 * 1e6;
+	// 	ddf_ppm[n_valid_pairs] = ddf * 1e6;
+
+	// 	// printf("pair=%zu rdf2_ppm=%.9f rdf3_ppm=%.9f ddf_ppm=%.9f\n",
+	// 	// 	n_valid_pairs,
+	// 	// 	rdf2_ppm[n_valid_pairs],
+	// 	// 	rdf3_ppm[n_valid_pairs],
+	// 	// 	ddf_ppm[n_valid_pairs]);
+
+	// 	n_valid_pairs++;
+	// }
+
+	// if (n_valid_pairs == 0) {
+	// 	fprintf(stderr,
+	// 		"No valid pairs available for resolution "
+	// 		"calculation.\n");
+	// 	status = -10;
+	// 	goto cleanup;
+	// }
+
+	// double rdf2_resolution = standard_deviation(rdf2_ppm, n_valid_pairs);
+
+	// double rdf3_resolution = standard_deviation(rdf3_ppm, n_valid_pairs);
+
+	// double ddf_resolution =
+	// 	standard_deviation(ddf_ppm, n_valid_pairs) / sqrt(2.0);
+
+	// clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	// rdf_seconds = elapsed_seconds(&stage_start, &stage_end);
+
+	// printf("\nResolution results:\n");
+	// printf("Valid pairs:     %zu\n", n_valid_pairs);
+	// printf("RDF2 resolution: %.9f ppm\n", rdf2_resolution);
+	// printf("RDF3 resolution: %.9f ppm\n", rdf3_resolution);
+	// printf("DDF resolution:  %.9f ppm\n", ddf_resolution);
+
+	// /*
+	//  * Temporary terminal output instead of CSV.
+	//  */
+	// // printf(
+	// //     "window,start_ts,end_ts,"
+	// //     "ch2_sum,ch2_mean,ch2_samples,"
+	// //     "ch3_sum,ch3_mean,ch3_samples\n"
+	// // );
+
+	// // for (size_t i = 0; i < n_windows; i++) {
+	// //     printf(
+	// //         "%zu,%" PRIu64 ",%" PRIu64 ","
+	// //         "%.17g,%.17g,%zu,"
+	// //         "%.17g,%.17g,%zu\n",
+	// //         i,
+	// //         windows[i].start_ts,
+	// //         windows[i].end_ts,
+	// //         int_ch2[i].sum,
+	// //         int_ch2[i].mean,
+	// //         int_ch2[i].n_samples,
+	// //         int_ch3[i].sum,
+	// //         int_ch3[i].mean,
+	// //         int_ch3[i].n_samples
+	// //     );
+	// // }
 
 	status = 0;
 
 cleanup:
-	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+	// clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
 	/*
 	 * If an error happened after only one thread was created, wait

@@ -93,15 +93,15 @@ static void *dc_worker(void *args) {
     return NULL;
 }
 
-/**
- * @brief 
- * 
- * @param words 
- * @param n_words 
- * @param output 
- * @param n_output 
- * @return int 
- */
+
+ static double elapsed_seconds(
+	const struct timespec *start,
+	const struct timespec *end) {
+	return (double)(end->tv_sec - start->tv_sec) +
+	       1e-9 * (double)(end->tv_nsec - start->tv_nsec);
+}
+
+
 static int zero_padding(
     const uint64_t* words, 
     size_t n_words, 

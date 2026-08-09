@@ -194,3 +194,106 @@ int adc_packet_parser_v3_beta(
 
 	return 0;
 }
+
+
+int adc_packet_parser_v4_beta(
+        const uint64_t *raw_data,
+        size_t num_words,
+        size_t words_per_dma_packet,
+        adc_sample_test_t *output)
+{
+    /*
+     * output оставлен в сигнатуре, чтобы функция имела те же аргументы,
+     * что и настоящий parser. В этом диагностическом тесте мы намеренно
+     * ничего в output не записываем.
+     */
+    (void)output;
+
+    if (raw_data == NULL)
+        return -1;
+
+    /*
+     * DMA packet:
+     *
+     * word 0: MAGIC_WORD
+     * word 1: timestamp
+     * word 2...: ADC payload
+     *
+     * Один ADC frame занимает три uint64_t.
+     */
+    if (words_per_dma_packet < 5)
+        return -2;
+
+    if ((words_per_dma_packet - 2) % 3 != 0)
+        return -3;
+
+    if (num_words % words_per_dma_packet != 0)
+        return -4;
+
+    const size_t num_packets =
+        num_words / words_per_dma_packet;
+
+    const size_t samples_per_packet =
+        (words_per_dma_packet - 2) / 3;
+
+    /*
+     * Независимые аккумуляторы уменьшают последовательную зависимость
+     * между итерациями и позволяют процессору обрабатывать несколько
+     * загруженных слов параллельно.
+     */
+    uint64_t checksum0 = 0;
+    uint64_t checksum1 = 0;
+    uint64_t checksum2 = 0;
+    uint64_t checksum3 = 0;
+
+    for (size_t p = 0; p < num_packets; p++) {
+        const size_t base = p * words_per_dma_packet;
+
+        if (raw_data[base] != MAGIC_WORD)
+            return -5;
+
+        const size_t payload_begin = base + 2;
+        const size_t payload_end =
+            payload_begin + 3 * samples_per_packet;
+
+        size_t i = payload_begin;
+
+        /*
+         * Читаем по четыре слова за итерацию.
+         */
+        for (; i + 3 < payload_end; i += 4) {
+            checksum0 ^= raw_data[i + 0];
+            checksum1 ^= raw_data[i + 1];
+            checksum2 ^= raw_data[i + 2];
+            checksum3 ^= raw_data[i + 3];
+        }
+
+        /*
+         * Обрабатываем остаток: от нуля до трёх слов.
+         */
+        for (; i < payload_end; i++) {
+            checksum0 ^= raw_data[i];
+        }
+    }
+
+    const uint64_t checksum =
+        checksum0 ^ checksum1 ^ checksum2 ^ checksum3;
+
+    fprintf(stderr,
+            "v4_beta diagnostic:\n"
+            "  num_words:          %zu\n"
+            "  num_packets:        %zu\n"
+            "  samples_per_packet: %zu\n"
+            "  total_samples:      %zu\n"
+            "  input_size:         %.3f GiB\n"
+            "  checksum:           %" PRIu64 "\n",
+            num_words,
+            num_packets,
+            samples_per_packet,
+            num_packets * samples_per_packet,
+            (double)(num_words * sizeof(*raw_data)) /
+                (1024.0 * 1024.0 * 1024.0),
+            checksum);
+
+    return 0;
+}

@@ -4,6 +4,15 @@
 
 #include "rfsoc_types.h"
 
+
+static double elapsed_seconds(
+        const struct timespec *start,
+        const struct timespec *end)
+{
+    return (double)(end->tv_sec - start->tv_sec)
+         + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
+}
+
 /**
  * @brief Parses three raw 64-bit words into one eight-channel ADC frame.
  *
@@ -241,6 +250,12 @@ int adc_packet_parser_v3_beta(
 
 
 int adc_packet_parser_v4_beta(
+        const uint64_t *raw_data,
+        size_t num_words,
+        size_t words_per_dma_packet,
+        adc_sample_test_t *output);
+
+int adc_packet_parser_v5_beta(
         const uint64_t *raw_data,
         size_t num_words,
         size_t words_per_dma_packet,

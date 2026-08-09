@@ -238,6 +238,15 @@ int adc_packet_parser_v3_beta(
     size_t words_per_dma_packet, 
     adc_sample_test_t *output
 );
+
+
+int adc_packet_parser_v4_beta(
+        const uint64_t *raw_data,
+        size_t num_words,
+        size_t words_per_dma_packet,
+        adc_sample_test_t *output);
+
+        
 /**
  * @brief Parses an array of raw gate-event words.
  *
@@ -259,3 +268,4 @@ int gate_word_parser(
 	gate_event_t *output);
 
 #endif // IO_H
+

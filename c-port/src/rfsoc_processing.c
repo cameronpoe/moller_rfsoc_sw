@@ -1,155 +1,5 @@
 #include "rfsoc_processing.h"
 
-// int process_dma_buffer(
-//     const uint64_t* adc_words,
-//     size_t n_adc_words,
-//     const uint64_t* gate_words,
-//     size_t n_gate_words,
-//     size_t n_words_per_packet,
-//     size_t fft_len,
-//     bool fft_enabled
-// ) {
-//     if (!adc_words || !gate_words) return -1;
-//     if (n_words_per_packet == 0 || n_adc_words == 0) return -2;
-
-//     adc_sample_t *samples = NULL;
-//     gate_event_t *gate_events = NULL;
-//     gate_window_t *windows = NULL;
-//     uint64_t *nonzero_gate_events = NULL;
-//     rotated_sample_t *dc_ch2 = NULL;
-//     rotated_sample_t *dc_ch3 = NULL;
-//     integration_result_t *int_ch2 = NULL;
-//     integration_result_t *int_ch3 = NULL;
-
-//     size_t n_samples = 0;
-//     size_t n_gate_events = 0;
-//     size_t n_windows = 0;
-//     size_t window_ind = 0;
-//     int status = -1;
-//     int thread_stat = -1;
-//     int thread2_join_stat = -1;
-//     int thread3_join_stat = -1;
-
-//     size_t samples_per_packet = (n_words_per_packet - 2) / 3 ;
-//     if (samples_per_packet )
-//     samples = calloc(samples_per_packet, sizeof(adc_sample_t));
-//     if (!samples) {
-//         goto cleanup;
-//     }
-
-//     status = adc_packet_parser_v2(adc_words, n_adc_words, n_words_per_packet,
-//     samples); if (status != 0) {
-//         fprintf(stderr,
-//                 "Failed to parse ADC data \n");
-//         goto cleanup;
-//     }
-
-//     status = gate_word_parser(gate_words, n_gate_words, gate_events);
-//     if (status != 0) {
-//         fprintf(stderr,
-//                 "Failed to parse gate data \n");
-//         goto cleanup;
-//     }
-
-//     gate_events = calloc(n_gate_words, sizeof(*gate_events));
-//     if (!gate_events) {
-//         goto cleanup;
-//     }
-
-//     status = zero_padding(gate_words, n_gate_words, &gate_events,
-//     &n_gate_events); if (status != 0) {
-//         fprintf(stderr,
-//                 "Failed to zero padding of gate dat \n");
-//         goto cleanup;
-//     }
-
-//     status = build_gate_windows(gate_events, n_gate_events, &windows,
-//     &n_windows); if (status != 0) {
-//         fprintf(stderr,
-//         "Failed to build gate windows \n");
-//         goto cleanup;
-//     }
-
-//     pthread_t thread2;
-//     pthread_t thread3;
-
-//     dc_job_t job2 = {
-//         .samples = samples,
-//         .n_samples = n_samples,
-//         .channel = 2,
-//         .fft_enabled = fft_enabled,
-//         .fft_len = fft_len,
-//         .n_out = 0,
-//         .out = dc_ch2,
-//         .status = -1
-//     };
-
-//     dc_job_t job3 = {
-//         .samples = samples,
-//         .n_samples = n_samples,
-//         .channel = 3,
-//         .fft_enabled = fft_enabled,
-//         .fft_len = fft_len,
-//         .n_out = 0,
-//         .out = dc_ch3,
-//         .status = -1
-//     };
-
-//     thread_stat = pthread_create(&thread2, NULL, dc_worker, &job2);
-//     if (thread_stat != 0) {
-//         fprintf(stderr,
-//                 "pthread_create(thread2) %s\n", strerror(thread_stat));
-//         goto cleanup;
-//     }
-
-//     thread_stat = pthread_create(&thread3, NULL, dc_worker, &job3);
-//     if (thread_stat != 0) {
-//         fprintf(stderr,
-//                 "pthread_create(thread2) %s\n", strerror(thread_stat));
-//         goto cleanup;
-//     }
-
-//     thread2_join_stat = pthread_join(thread2, NULL);
-//     if (thread2_join_stat != 0) {
-//         fprintf(stderr,
-//                 "pthread_join(thread2) %s\n", strerror(thread2_join_stat));
-//         goto cleanup;
-//     }
-
-//     thread3_join_stat = pthread_join(thread3, NULL);
-//     if (thread3_join_stat != 0) {
-//         fprintf(stderr,
-//                 "pthread_join(thread3) %s\n", strerror(thread3_join_stat));
-//         goto cleanup;
-//     }
-
-//     status = accumulate_block(
-//             dc_ch2, dc_ch3, job2.n_out,
-//             windows, n_windows, int_ch2, int_ch3, &window_ind);
-//     if (status != 0) {
-//         fprintf(stderr,
-//             "Integration has failed \n");
-//         goto cleanup;
-//     }
-
-// cleanup:
-//     free(samples);
-//     free(gate_events);
-//     free(windows);
-//     free(nonzero_gate_events);
-//     free(dc_ch2);
-//     free(dc_ch3);
-//     free(int_ch2);
-//     free(int_ch3);
-//     return status == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-// }
-
-static double elapsed_seconds(
-	const struct timespec *start,
-	const struct timespec *end) {
-	return (double)(end->tv_sec - start->tv_sec) +
-	       1e-9 * (double)(end->tv_nsec - start->tv_nsec);
-}
 
 int process_dma_buffer(
 	const uint64_t *adc_words,
@@ -199,8 +49,20 @@ int process_dma_buffer(
 
 	int status = -1;
 
-	struct timespec dc_start;
-    struct timespec dc_end;
+	struct timespec total_start;
+	struct timespec total_end;
+	struct timespec stage_start;
+	struct timespec stage_end;
+
+	double allocation_seconds = 0.0;
+	double parser_seconds = 0.0;
+	double gate_seconds = 0.0;
+	double dc_seconds = 0.0;
+	double integration_seconds = 0.0;
+	double rdf_seconds = 0.0;
+	double cleanup_seconds = 0.0;
+
+	clock_gettime(CLOCK_MONOTONIC, &total_start);
 
 	/*
 	 * Calculate how many complete DMA packets are present.
@@ -262,9 +124,14 @@ int process_dma_buffer(
 	 * malloc is enough because all meaningful elements will be
 	 * written by the processing functions.
 	 */
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
 	samples = malloc(n_samples * sizeof(*samples));
 	dc_ch2 = malloc(n_samples * sizeof(*dc_ch2));
 	dc_ch3 = malloc(n_samples * sizeof(*dc_ch3));
+
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	allocation_seconds += elapsed_seconds(&stage_start, &stage_end);
 
 	if (!samples || !dc_ch2 || !dc_ch3) {
 		fprintf(stderr, "Failed to allocate ADC/DC buffers.\n");
@@ -272,8 +139,13 @@ int process_dma_buffer(
 		goto cleanup;
 	}
 
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
 	status = adc_packet_parser_v2(
 		adc_words, complete_adc_words, n_words_per_packet, samples);
+
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	parser_seconds = elapsed_seconds(&stage_start, &stage_end);
 
 	if (status != 0) {
 		fprintf(stderr, "adc_packet_parser_v2 failed: %d\n", status);
@@ -292,6 +164,8 @@ int process_dma_buffer(
 	 *     uint64_t **nonzero,
 	 *     size_t *n_nonzero);
 	 */
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
 	status = zero_padding(
 		gate_words,
 		n_gate_words,
@@ -369,6 +243,9 @@ int process_dma_buffer(
 		goto cleanup;
 	}
 
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	gate_seconds = elapsed_seconds(&stage_start, &stage_end);
+
 	/*
 	 * Each worker reads the shared samples array, but writes to its
 	 * own output array and its own job structure.
@@ -391,7 +268,7 @@ int process_dma_buffer(
 		.out = dc_ch3,
 		.status = -1};
 	
-	clock_gettime(CLOCK_MONOTONIC, &dc_start);
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
 	int thread_status = pthread_create(&thread2, NULL, dc_worker, &job2);
 
@@ -446,11 +323,8 @@ int process_dma_buffer(
 	}
 
 	thread3_started = false;
-	clock_gettime(CLOCK_MONOTONIC, &dc_end);
-	double dc_seconds = 0.0;
-	
-	dc_seconds += elapsed_seconds(&dc_start, &dc_end);
-	printf("Parallel DC time:     %.9f sec\n", dc_seconds);
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	dc_seconds = elapsed_seconds(&stage_start, &stage_end);
 
 	if (job2.status != 0 || job3.status != 0) {
 		fprintf(stderr,
@@ -488,11 +362,47 @@ int process_dma_buffer(
 	pthread_t int_thread2;
 	pthread_t int_thread3;
 
-	pthread_create(&int_thread2, NULL, integration_worker, &int_job2);
-	pthread_create(&int_thread3, NULL, integration_worker, &int_job3);
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
 
-	pthread_join(int_thread2, NULL);
-	pthread_join(int_thread3, NULL);
+	int thread_status2 = pthread_create(
+		&int_thread2, NULL, integration_worker, &int_job2);
+	int thread_status3 = pthread_create(
+		&int_thread3, NULL, integration_worker, &int_job3);
+
+	if (thread_status2 != 0 || thread_status3 != 0) {
+		fprintf(stderr,
+			"Failed to create integration threads: ch2=%s, ch3=%s\n",
+			thread_status2 == 0 ? "ok" : strerror(thread_status2),
+			thread_status3 == 0 ? "ok" : strerror(thread_status3));
+
+		if (thread_status2 == 0) {
+			pthread_join(int_thread2, NULL);
+		}
+		if (thread_status3 == 0) {
+			pthread_join(int_thread3, NULL);
+		}
+
+		status = -9;
+		goto cleanup;
+	}
+
+	thread_status2 = pthread_join(int_thread2, NULL);
+	thread_status3 = pthread_join(int_thread3, NULL);
+
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	integration_seconds = elapsed_seconds(&stage_start, &stage_end);
+
+	if (thread_status2 != 0 || thread_status3 != 0 ||
+		int_job2.status != 0 || int_job3.status != 0) {
+		fprintf(stderr,
+			"Integration failed: join2=%d, join3=%d, ch2=%d, ch3=%d\n",
+			thread_status2,
+			thread_status3,
+			int_job2.status,
+			int_job3.status);
+		status = -9;
+		goto cleanup;
+	}
 
 	// status = integrate_windows_sorted(
 	// 	dc_ch2, job2.n_out, windows, n_windows, int_ch2);
@@ -509,6 +419,8 @@ int process_dma_buffer(
 	// 	fprintf(stderr, "Channel 3 integration failed: %d\n", status);
 	// 	goto cleanup;
 	// }
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
 	size_t max_pairs = n_windows / 2;
 
 	rdf2_ppm = malloc(max_pairs * sizeof(*rdf2_ppm));
@@ -586,6 +498,9 @@ int process_dma_buffer(
 	double ddf_resolution =
 		standard_deviation(ddf_ppm, n_valid_pairs) / sqrt(2.0);
 
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	rdf_seconds = elapsed_seconds(&stage_start, &stage_end);
+
 	printf("\nResolution results:\n");
 	printf("Valid pairs:     %zu\n", n_valid_pairs);
 	printf("RDF2 resolution: %.9f ppm\n", rdf2_resolution);
@@ -621,6 +536,8 @@ int process_dma_buffer(
 	status = 0;
 
 cleanup:
+	clock_gettime(CLOCK_MONOTONIC, &stage_start);
+
 	/*
 	 * If an error happened after only one thread was created, wait
 	 * for that thread before releasing the buffers it uses.
@@ -656,6 +573,24 @@ cleanup:
 	free(rdf2_ppm);
 	free(rdf3_ppm);
 	free(ddf_ppm);
+
+	clock_gettime(CLOCK_MONOTONIC, &stage_end);
+	cleanup_seconds = elapsed_seconds(&stage_start, &stage_end);
+	clock_gettime(CLOCK_MONOTONIC, &total_end);
+
+	fprintf(stderr, "\nC stage timings\n");
+	fprintf(stderr, "  allocation:   %.6f s\n", allocation_seconds);
+	fprintf(stderr, "  ADC parser:   %.6f s\n", parser_seconds);
+	fprintf(stderr, "  gate setup:   %.6f s\n", gate_seconds);
+	fprintf(stderr, "  parallel DC:  %.6f s\n", dc_seconds);
+	fprintf(stderr, "  integration:  %.6f s\n", integration_seconds);
+	fprintf(stderr, "  RDF/DDF:      %.6f s\n", rdf_seconds);
+	fprintf(stderr, "  cleanup:      %.6f s\n", cleanup_seconds);
+	fprintf(stderr,
+		"  total C:      %.6f s\n",
+		elapsed_seconds(&total_start, &total_end));
+	fprintf(stderr, "  status:       %d\n", status);
+	fflush(stderr);
 
 	return status;
 }

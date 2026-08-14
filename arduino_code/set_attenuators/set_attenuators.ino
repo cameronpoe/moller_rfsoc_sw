@@ -6,7 +6,18 @@ const int data = 1;   // TX pin  - shared data
 const int LE[4] = {2, 3, 4, 5};   // DSA 1,2,3,4
 
 // 0 dB = all bits zero. Order: [16,8,4,2,1,0.5] dB
-int attenSet[6] = {0,0,0,0,0,0};
+// int attenSet[4][6] = {
+//   {1,1,1,1,1,1}, // DSA 1
+//   {0,0,1,0,1,0}, // DSA 2 
+//   {1,1,1,1,1,1}, // DSA 3
+//   {0,0,1,0,0,0}  // DSA 4
+// };
+int attenSet[4][6] = {
+  {1,1,1,1,1,1}, // DSA 1
+  {1,1,1,1,1,1}, // DSA 2 
+  {1,1,1,1,1,1}, // DSA 3
+  {1,1,1,1,1,1}  // DSA 4
+};
 int del = 5;
 
 // Startup flashes LEDs in new way compared to 2019/2020 Arduino code
@@ -21,7 +32,7 @@ void startupSignature() {
 
   delay(400);  // small gap between the two patterns
 
-  // 4 slow on-offs
+  // 3 slow on-offs
   for (int i = 0; i < 3; i++) {
     digitalWrite(LED_BUILTIN, HIGH);
     delay(300);
@@ -55,7 +66,7 @@ void setup() {
 
     // shift in 6 bits, MSB first
     for (int b = 0; b < 6; b++) {
-      digitalWrite(data, attenSet[b] ? HIGH : LOW);
+      digitalWrite(data, attenSet[dsa][b] ? HIGH : LOW);
       digitalWrite(clk, HIGH);
       delay(del);
       digitalWrite(clk, LOW);

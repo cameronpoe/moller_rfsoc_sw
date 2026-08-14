@@ -749,7 +749,7 @@ def main():
             j += 1
         i += 1
 
-    np.savez(f'00_data.npz', **save_dict)
+    np.savez(run_dir / f'00_data.npz', **save_dict)
 
 
 if __name__ == "__main__":

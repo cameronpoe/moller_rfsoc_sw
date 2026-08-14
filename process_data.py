@@ -107,35 +107,6 @@ def style_ax(ax):
     ax.yaxis.minorticks_on()
 
 
-def amplitude_hist(data, save_path, verbose=False):
-
-    bins = int(data.max()) - int(data.min()) + 1
-
-    fig, ax = plt.subplots(figsize=(14,10))
-    ax.hist(data, bins=bins)
-    ax.set_ylabel('Number of samples per 1 ADC code bin', fontdict=dict(size=14))
-    ax.set_xlabel('ADC code', fontdict=dict(size=14))
-    style_ax(ax)
-    fig.savefig(save_path + 'rfs_amplitude_hist.png')
-    plt.close(fig)
-
-
-def sanitize_for_yaml(data):
-    """Recursively converts NumPy types and complex numbers to YAML-safe Python types."""
-    if isinstance(data, dict):
-        return {k: sanitize_for_yaml(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [sanitize_for_yaml(x) for x in data]
-    elif isinstance(data, (np.integer, np.int16, np.int32, np.int64)):
-        return int(data)
-    elif isinstance(data, (np.floating, np.float32, np.float64)):
-        return float(data)
-    elif isinstance(data, (complex, np.complexfloating, np.complex128)):
-        # YAML does not support complex numbers natively, so we convert them to strings
-        return str(data).strip("()")
-    return data
-
-
 def load_plot_config(path: Path) -> dict:
     """Load plot-enable flags from a YAML file.
 
@@ -613,6 +584,8 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbo
     fig.savefig(save_dir / particular_save_str)
     plt.close(fig)
 
+    return (data_mean, mean_err), (std_dev, std_err), num_bins, chi2_red, fit_ok
+
 
 def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
     """Scatter and binned-mean plots of DDF vs RDF to diagnose differential nonlinearity."""
@@ -744,7 +717,12 @@ def main():
 
     data_integrated, window_start_times = gate_means(data_dc, first_ts, edge_times)
 
+    save_dict = {}
+
     asymmetries = construct_asymmetries(data_integrated, window_start_times, run_dir, ch_names, plot_config, verbose=args.verbose)
+
+    for i in range(asymmetries.shape[0]):
+        save_dict[f'asym_{CH_INDEX_DICT[str(i)]}'] = asymmetries[i]
 
     # Figure 08: FFT of asymmetry time series.
     # Each asymmetry spans one window pair (two gate periods), so the asymmetry rate is avg_gate_freq/2.
@@ -756,10 +734,19 @@ def main():
         j = i + 1
         while j < asymmetries.shape[0]:
             ddf = asymmetries[i] - asymmetries[j]
-            compute_resolution(ddf, run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
+            ddf_mean, ddf_stddev, num_bins, chi2_red, fit_ok = compute_resolution(ddf, run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
             plot_diff_nonlinearity(asymmetries[i], ddf, run_dir, ch_names[i], ch_names[j], plot_config)
+            save_dict.update({
+                f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_mean': ddf_mean,
+                f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_stddev': ddf_stddev,
+                f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_nbins': num_bins,
+                f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_chi2-red': chi2_red,
+                f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_fit-ok': fit_ok
+            })
             j += 1
         i += 1
+
+    np.savez(f'00_data.npz', **save_dict)
 
 
 if __name__ == "__main__":

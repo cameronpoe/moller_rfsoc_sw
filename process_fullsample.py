@@ -67,7 +67,7 @@ def amplitude_diagnostics(data, verbose=False):
 
 def amplitude_hist(data, save_path, verbose=False):
 
-    bins = int(data.max()) - int(data.min()) + 1
+    bins = int(data.max()) - int(data.min())
 
     fig, ax = plt.subplots(figsize=(14,10))
     ax.hist(data, bins=bins)
@@ -79,6 +79,16 @@ def amplitude_hist(data, save_path, verbose=False):
     ax.yaxis.minorticks_on()
     fig.savefig(save_path + 'rfs_amplitude_hist.png')
 
+    fig, ax = plt.subplots(figsize=(14,10))
+    ax.hist(data, bins=300)
+    ax.set_ylabel('Number of samples per 1 ADC code bin', fontdict=dict(size=14))
+    ax.set_xlabel('ADC code', fontdict=dict(size=14))
+    ax.xaxis.set_ticks_position('both')
+    ax.yaxis.set_ticks_position('both')
+    ax.xaxis.minorticks_on()
+    ax.yaxis.minorticks_on()
+    fig.savefig(save_path + 'rfs_amplitude_hist_fewer_bin.png')
+    
     return
 
 def compute_fft(data, save_path):

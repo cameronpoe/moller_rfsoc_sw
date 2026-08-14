@@ -725,7 +725,7 @@ def main():
     asymmetries = construct_asymmetries(data_integrated, window_start_times, run_dir, ch_names, plot_config, verbose=args.verbose)
 
     for i in range(asymmetries.shape[0]):
-        save_dict[f'asym_{CH_INDEX_DICT[str(i)]}'] = asymmetries[i]
+        save_dict[f'asym_{CH_NAME_DICT[str(i)]}'] = asymmetries[i]
 
     # Figure 08: FFT of asymmetry time series.
     # Each asymmetry spans one window pair (two gate periods), so the asymmetry rate is avg_gate_freq/2.

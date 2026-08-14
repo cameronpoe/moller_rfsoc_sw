@@ -166,8 +166,11 @@ def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
 
 
 def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
-    """Return <outdir>/<stem>, creating it, optionally emptying it first."""
-    run_dir_string = f'mrf_{Path(filename).stem}'
+    """Return <outdir>/<stem>, creating it, optionally emptying it first."""       
+    stem = Path(filename).stem
+    if stem[0:4] == 'mrf_':
+        stem = stem[0:4]
+    run_dir_string = f'mrf_{stem}'
     run_dir = outdir / run_dir_string
 
     if clean and run_dir.is_dir():

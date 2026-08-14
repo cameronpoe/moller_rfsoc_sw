@@ -169,7 +169,7 @@ def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
     """Return <outdir>/<stem>, creating it, optionally emptying it first."""       
     stem = Path(filename).stem
     if stem[0:4] == 'mrf_':
-        stem = stem[0:4]
+        stem = stem[4:]
     run_dir_string = f'mrf_{stem}'
     run_dir = outdir / run_dir_string
 
@@ -725,7 +725,7 @@ def main():
     asymmetries = construct_asymmetries(data_integrated, window_start_times, run_dir, ch_names, plot_config, verbose=args.verbose)
 
     for i in range(asymmetries.shape[0]):
-        save_dict[f'asym_{CH_INDEX_DICT[str(i)]}'] = asymmetries[i]
+        save_dict[f'asym_{CH_NAME_DICT[str(i)]}'] = asymmetries[i]
 
     # Figure 08: FFT of asymmetry time series.
     # Each asymmetry spans one window pair (two gate periods), so the asymmetry rate is avg_gate_freq/2.

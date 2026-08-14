@@ -1,9 +1,12 @@
+import sys
+import shutil
+from pathlib import Path
+import yaml
+import argparse
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
-import argparse
-from pathlib import Path
-import yaml
 from pyfftw.interfaces.numpy_fft import fftfreq, fft, rfftfreq, rfft
 from scipy.optimize import curve_fit
 from scipy.signal.windows import blackman
@@ -15,6 +18,7 @@ SAMPLE_FREQ = FULL_SAMPLE_FREQ / DECIMATION
 ACLK_FREQ = 125e6
 HEADER_WORDS = 2
 WORDS_PER_PACKET = 124928
+
 DEFAULT_DIR = "./tmp/"
 
 INFO_DICT = {}
@@ -149,12 +153,28 @@ def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
         f"Could not find directory {value!r} relative to {Path.cwd()} or as an absolute path."
     )
 
-def run_directory(filename: str, outdir: Path) -> Path:
-    """Return <outdir>/<filename stem>, creating it if it doesn't exist."""
+def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
+    """Return <outdir>/<stem>, creating it, optionally emptying it first."""
     run_dir_string = f'mrf_{Path(filename).stem}'
     run_dir = outdir / run_dir_string
+
+    if clean and run_dir.is_dir():
+        clear_directory(run_dir)
+
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
+
+
+def clear_directory(target: Path) -> int:
+    """Remove everything inside `target`, leaving the directory itself. Returns count."""
+    removed = 0
+    for entry in target.iterdir():
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+        removed += 1
+    return removed
 
 def format_data(filename):
 
@@ -602,6 +622,14 @@ def main():
         parser.error(str(err))
 
     run_dir = run_directory(args.filename, outdir)
+
+    existing = list(run_dir.iterdir()) if run_dir.is_dir() else []
+    if existing:
+        if sys.stdin.isatty():
+            reply = input(f"Delete {len(existing)} item(s) in {run_dir}? [y/N] ")
+            if reply.strip().lower() not in {"y", "yes"}:
+                parser.error("aborted")
+        clear_directory(run_dir)
 
     if args.verbose:
         print(f"Writing outputs to {run_dir}")

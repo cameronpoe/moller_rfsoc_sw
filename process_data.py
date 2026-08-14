@@ -20,6 +20,7 @@ HEADER_WORDS = 2
 WORDS_PER_PACKET = 124928
 
 DEFAULT_DIR = "./tmp/"
+DEFAULT_PLOT_CONFIG = "./plots.yaml"
 
 INFO_DICT = {}
 
@@ -31,10 +32,15 @@ CH_NAME_DICT = {
     '1': 'ch3',
     '2': 'ch2',
     '3': 'ch1'
-} 
+}
+
+# Inverse: human-facing channel number (1-4) -> array index (0-3)
+CH_INDEX_DICT = {1: 3, 2: 2, 3: 1, 4: 0}
+
 
 def gaussian(x, A, mu, sigma):
     return A * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
 
 def fit_gaussian_to_hist(counts, centers, verbose=True):
     """Chi-square fit of a Gaussian to histogram counts with sqrt(N) errors
@@ -63,7 +69,7 @@ def fit_gaussian_to_hist(counts, centers, verbose=True):
             gaussian, centers, counts,
             p0=[A0, mu0, sigma0],
             sigma=err,
-            absolute_sigma=True,   # your errors are real, not relative weights
+            absolute_sigma=True,
             maxfev=10000,
         )
         perr = np.sqrt(np.diag(pcov))
@@ -82,17 +88,24 @@ def fit_gaussian_to_hist(counts, centers, verbose=True):
 
     return popt, perr, chi2_red
 
-def freedman_diaconis_rule(binned_data):
 
-    # Found on stack-exchange, optimum bins is "Freedman-Diaconis rule"
+def freedman_diaconis_rule(binned_data):
+    # Freedman-Diaconis rule for optimal bin count
     q75, q25 = np.percentile(binned_data, [75, 25])
     iqr = q75 - q25
     bin_width = 2 * iqr * binned_data.size**(-1/3)
     num_bins = int(np.round((binned_data.max() - binned_data.min())/bin_width))
     if num_bins < 10:
         num_bins = 10
-
     return num_bins
+
+
+def style_ax(ax):
+    ax.xaxis.set_ticks_position('both')
+    ax.yaxis.set_ticks_position('both')
+    ax.xaxis.minorticks_on()
+    ax.yaxis.minorticks_on()
+
 
 def amplitude_hist(data, save_path, verbose=False):
 
@@ -102,14 +115,10 @@ def amplitude_hist(data, save_path, verbose=False):
     ax.hist(data, bins=bins)
     ax.set_ylabel('Number of samples per 1 ADC code bin', fontdict=dict(size=14))
     ax.set_xlabel('ADC code', fontdict=dict(size=14))
-    ax.xaxis.set_ticks_position('both')
-    ax.yaxis.set_ticks_position('both')
-    ax.xaxis.minorticks_on()
-    ax.yaxis.minorticks_on()
+    style_ax(ax)
     fig.savefig(save_path + 'rfs_amplitude_hist.png')
     plt.close(fig)
 
-    return
 
 def sanitize_for_yaml(data):
     """Recursively converts NumPy types and complex numbers to YAML-safe Python types."""
@@ -125,6 +134,37 @@ def sanitize_for_yaml(data):
         # YAML does not support complex numbers natively, so we convert them to strings
         return str(data).strip("()")
     return data
+
+
+def load_plot_config(path: Path) -> dict:
+    """Load plot-enable flags from a YAML file.
+
+    If the file does not exist, write a template with all plots enabled and
+    return a dict with all plots enabled.
+    """
+    all_plots = {
+        '03_down-mixed_iq_phase':    True,
+        '04_15-625MHz_time-series':  True,
+        '05_15-625MHz_fft':          True,
+        '06_asymmetry_time-series':  True,
+        '07_asymmetry_hist':         True,
+        '08_asymmetry_fft':          True,
+        '09_ddf_hist':               True,
+        '10_dnl_scatter':            True,
+        '11_dnl_binned':             True,
+    }
+    if not path.exists():
+        with open(path, 'w') as f:
+            yaml.dump({'plots': all_plots}, f, default_flow_style=False)
+        return all_plots
+    with open(path) as f:
+        config = yaml.safe_load(f)
+    return config.get('plots', all_plots)
+
+
+def plot_enabled(config: dict, name: str) -> bool:
+    return config.get(name, True)
+
 
 def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
     """Resolve the -d/--dir argument to an existing directory.
@@ -153,6 +193,7 @@ def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
         f"Could not find directory {value!r} relative to {Path.cwd()} or as an absolute path."
     )
 
+
 def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
     """Return <outdir>/<stem>, creating it, optionally emptying it first."""
     run_dir_string = f'mrf_{Path(filename).stem}'
@@ -176,6 +217,7 @@ def clear_directory(target: Path) -> int:
         removed += 1
     return removed
 
+
 def format_data(filename):
 
     data = np.fromfile(filename, dtype=np.uint64)
@@ -191,22 +233,22 @@ def format_data(filename):
     rising_edges = rising_edges.astype(np.float64) / ACLK_FREQ
     falling_edges = falling_edges.astype(np.float64) / ACLK_FREQ
 
-    avg_gate_freq = 0.5*((1/np.diff(rising_edges)).mean() + (1/np.diff(falling_edges).mean()))
-    
+    avg_gate_freq = 0.5 * ((1/np.diff(rising_edges)).mean() + (1/np.diff(falling_edges)).mean())
+
     edge_times = np.array([rising_edges, falling_edges]).T
     rising_edges, falling_edges = None, None
-    
-    buffer_np = np.frombuffer(data, dtype=np.uint64)        
-    
+
+    buffer_np = np.frombuffer(data, dtype=np.uint64)
+
     num_words = buffer_np.size
-    
+
     expected_magic_word_indices = np.arange(int(num_words / WORDS_PER_PACKET)) * WORDS_PER_PACKET
     expected_metadata_mask = np.full(buffer_np.size, False)
     expected_metadata_mask[expected_magic_word_indices] = True
     expected_magic_word_indices = None
     for _ in range(HEADER_WORDS-1):
         expected_metadata_mask |= np.roll(expected_metadata_mask, 1)
-        
+
     first_ts = buffer_np[HEADER_WORDS-1]
 
     buffer_np = buffer_np[~expected_metadata_mask]
@@ -222,12 +264,11 @@ def format_data(filename):
 
     even_mask = np.arange(buffer_np.shape[0])%2 == 0
     buffer_np = buffer_np[even_mask,:] + 1j * buffer_np[~even_mask,:]
-    
+
     return buffer_np, first_ts, edge_times, avg_gate_freq
 
 
-
-def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_bins=1):
+def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_config, verbose=False, fft_bins=1):
 
     num_samp = iq_data.shape[1]
     new_num_samps = num_samp
@@ -239,7 +280,8 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_b
         bin_samps = int(new_num_samps/fft_bins)
         iq_data = iq_data[:,:new_num_samps]
         iq_data = iq_data.reshape((-1,fft_bins,bin_samps))
-        print(f'New number of samples (after FFT binning): {new_num_samps}')
+        if verbose:
+            print(f'New number of samples (after FFT binning): {new_num_samps}')
 
         # Get FFT data and freq domain and sort (fftfreq doesn't give freqs back in ascending order)
         freq_domain = fftfreq(bin_samps, 1/SAMPLE_FREQ)
@@ -248,8 +290,8 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_b
         iq_data_freq = fft(blackman(bin_samps)*iq_data, axis=2)[:,:,freq_sort]
         freq_sort = None
 
-        if True:
-            print('Finishesd FFTing')
+        if verbose:
+            print('Finished FFTing')
 
         # Finds index of the highest-power signal (i.e. the carrier)
         carrier_indices = np.argmax(np.abs(iq_data_freq), axis=2)
@@ -259,12 +301,13 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_b
 
         # Frequencies around carrier frequency
         freq_neighborhoods = freq_domain[slices]
-    
+
         # FFT spectrum around carrier frequency
         iq_data_freq_neighborhoods = np.abs(np.take_along_axis(iq_data_freq, slices, axis=2))
-        slices = None, None
+        slices = None
 
-        # Carrier frequency is found by weighted average of frequencies around the highest-power one. Since DC peak is not a delta, since if the true frequency is shifting, power is shifting among the FFT bins. 
+        # Carrier frequency is found by weighted average of frequencies around the highest-power one.
+        # Since the DC peak is not a delta function, power shifts among FFT bins as the true frequency shifts.
         carrier_freqs = np.sum(freq_neighborhoods * iq_data_freq_neighborhoods/(np.sum(iq_data_freq_neighborhoods, axis=2)[:,:,np.newaxis]), axis=2)
         iq_data_freq_neighborhoods, freq_neighborhoods = None, None
 
@@ -272,34 +315,30 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_b
         iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,:,np.newaxis]/SAMPLE_FREQ*np.arange(bin_samps)))
         carrier_freqs = None
 
-    save_name = r'03_down-mixed_iq_phase'
-    for i in range(iq_data.shape[0]):
-        
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
+    if plot_enabled(plot_config, '03_down-mixed_iq_phase'):
+        save_name = '03_down-mixed_iq_phase'
+        for i in range(iq_data.shape[0]):
+            plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
+            particular_save_str = save_name + f'_{ch_names[i]}.png'
 
-        fig, ax = plt.subplots(figsize=(12,7))
-        ax.plot(np.unwrap(np.angle(iq_data[i,:])))
-        ax.set_title(plot_title, fontdict=dict(size=14))
-        ax.set_ylabel('I/Q phase (rad.)', fontdict=dict(size=12.5))
-        ax.set_xlabel(f'Time', fontdict=dict(size=12.5))
-        fig.subplots_adjust(bottom=0.13)
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
-        fig.savefig(save_dir / particular_save_str)
-        plt.close(fig)
+            fig, ax = plt.subplots(figsize=(12,7))
+            ax.plot(np.unwrap(np.angle(iq_data[i].flatten())))
+            ax.set_title(plot_title, fontdict=dict(size=14))
+            ax.set_ylabel('I/Q phase (rad.)', fontdict=dict(size=12.5))
+            ax.set_xlabel('Time', fontdict=dict(size=12.5))
+            fig.subplots_adjust(bottom=0.13)
+            style_ax(ax)
+            fig.savefig(save_dir / particular_save_str)
+            plt.close(fig)
 
     if mode == 'quad':
         if verbose:
-            print(f'Phase rotation: Using quadrature sum.')
+            print('Phase rotation: Using quadrature sum.')
         iq_data = np.abs(iq_data)
     elif mode == 'running':
         if verbose:
-            print(f'Phase rotation: Rotating by running I/Q phase.')
+            print('Phase rotation: Rotating by running I/Q phase.')
 
-        
         # Phases of the carrier signal
         carrier_phases = np.unwrap(np.angle(np.take_along_axis(iq_data_freq, carrier_indices[:,:,np.newaxis], axis=2))).squeeze(axis=2)
         iq_data_freq, carrier_indices = None, None
@@ -308,36 +347,38 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, verbose=False, fft_b
         iq_data = iq_data * np.exp(-1j * carrier_phases[:,:,np.newaxis])
         carrier_phases = None
 
-
         # Takes away any remnant phases between I/Q data
-        avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=2) # unwrap is very important here b/c we're averaging. if angle is fluctuating around +/- pi, the average of np.angle() could be ~0, but average of np.unwrap(np.angle()) will be the correct phase
+        # unwrap is critical: if phase fluctuates around +/- pi, np.angle() average ~= 0
+        # but np.unwrap(np.angle()) average gives the correct phase
+        avg_phases = np.average(np.unwrap(np.angle(iq_data)), axis=2)
         iq_data *= np.exp(-1j*avg_phases[:,:,np.newaxis])
-        avg_phases = None        
+        avg_phases = None
 
     iq_data = np.real(iq_data.reshape((-1, new_num_samps))).astype(np.float64)
 
-    save_name = r'04_15-625MHz_time-series'
-    for i in range(iq_data.shape[0]):
-        
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
+    if plot_enabled(plot_config, '04_15-625MHz_time-series'):
+        save_name = '04_15-625MHz_time-series'
+        for i in range(iq_data.shape[0]):
+            plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
+            particular_save_str = save_name + f'_{ch_names[i]}.png'
 
-        fig, ax = plt.subplots(figsize=(12,7))
-        ax.plot(iq_data[i])
-        ax.set_title(plot_title, fontdict=dict(size=14))
-        ax.set_ylabel('Amplitude (arb.)', fontdict=dict(size=12.5))
-        ax.set_xlabel(f'Time', fontdict=dict(size=12.5))
-        fig.subplots_adjust(bottom=0.13)
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
-        fig.savefig(save_dir / particular_save_str)
-        plt.close(fig)
+            fig, ax = plt.subplots(figsize=(12,7))
+            ax.plot(iq_data[i])
+            ax.set_title(plot_title, fontdict=dict(size=14))
+            ax.set_ylabel('Amplitude (arb.)', fontdict=dict(size=12.5))
+            ax.set_xlabel('Time', fontdict=dict(size=12.5))
+            fig.subplots_adjust(bottom=0.13)
+            style_ax(ax)
+            fig.savefig(save_dir / particular_save_str)
+            plt.close(fig)
 
     return iq_data
 
-def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, units='Hz'):
+
+def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, ch_names, plot_config, units='Hz'):
+
+    if not plot_enabled(plot_config, save_name):
+        return
 
     unit_norm = 1
     if units == 'kHz':
@@ -360,16 +401,15 @@ def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, 
 
     carrier_ind = np.abs(data_freq).argmax(axis=1)
     carrier_power = np.take_along_axis(np.abs(data_freq), carrier_ind[:,np.newaxis], axis=1)
-    carrier_freq = freq_domain[carrier_ind]    
+    carrier_freq = freq_domain[carrier_ind]
 
     for i in range(data_freq.shape[0]):
 
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
+        plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
+        particular_save_str = save_name + f'_{ch_names[i]}.png'
 
         info = "\n".join([
             rf"$f_c$ = {carrier_freq[i]*1e-3:.4f} kHz",
-            # rf"$P_c$ = {20*np.log10(carrier_power[i]):.1f} dBFS",
             rf"$\Delta f$ = {freq_spacing:.3f} Hz",
         ])
         at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
@@ -383,23 +423,18 @@ def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, 
         at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
         ax.add_artist(at)
         fig.subplots_adjust(bottom=0.13)
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
+        style_ax(ax)
         fig.savefig(save_dir / particular_save_str)
         plt.close(fig)
-
-    return
 
 
 def gate_means(data, first_ts, gates):
     """
-    data:  (4, N) detector data
-    times: (N,)   sample times (constant spacing, assumed sorted)
+    data:  (C, N) detector data
+    first_ts: first sample timestamp (ACLK ticks)
     gates: (M, 2) [start, stop] times; uses start <= t < stop
-    returns: (4, K) mean of data within each fully-contained gate, K <= M.
-             Gates that are not fully covered by the data are dropped.
+    returns: (C, K) mean of data within each fully-contained gate, K <= M.
+             Gates not fully covered by the data are dropped.
     """
 
     # first_ts is the time stamp associated with the first sample in the buffer
@@ -411,15 +446,15 @@ def gate_means(data, first_ts, gates):
     N = data.shape[1]
     # np.searchsorted returns indices of first array such that an element of the second array,
     #       if placed in that index, would keep the array sorted. In this case, it's used because
-    #       time_domain incremements in units of 1/15.625MHz, but the time stamp granularity is
+    #       time_domain increments in units of 1/15.625MHz, but the time stamp granularity is
     #       actually 1/125 MHz.
-    # Both are `side='left'` because we want to include the start index, but exclude the end index. 
+    # Both are `side='left'` because we want to include the start index, but exclude the end index.
     #       Alternatively, this is saying `start <= sample_time < end`
-    start_inds = np.searchsorted(time_domain, starts, side='left') # indices of time_domain to start integration
-    end_inds = np.searchsorted(time_domain, stops,  side='left') # indices of time_domain to end integration
+    start_inds = np.searchsorted(time_domain, starts, side='left')
+    end_inds = np.searchsorted(time_domain, stops,  side='left')
 
     # Some gates may have start times before the `first_ts`, or have end times that exceed the last
-    #       time of recorded data. We need to throw away those gates. 
+    #       time of recorded data. We need to throw away those gates.
     # A gate is fully contained iff:
     #   - its start is within the time range: start >= times[0]
     #   - its stop does not run past the data: hi < N (there is a sample at/after stop,
@@ -442,12 +477,13 @@ def gate_means(data, first_ts, gates):
 
     return means, window_starts
 
-def construct_asymmetries(means, times, save_dir, verbose=False):
+
+def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose=False):
 
     start_times = np.copy(times)
     if means.shape[-1] % 2 == 1:
         if verbose:
-            print(f'Number of integrated windows is odd. Dropping last window.')
+            print('Number of integrated windows is odd. Dropping last window.')
         means = means[:,:-1]
         start_times = start_times[:-1]
     even_mask = np.arange(means.shape[-1]) % 2 == 0
@@ -460,93 +496,74 @@ def construct_asymmetries(means, times, save_dir, verbose=False):
 
     for i in range(means.shape[0]):
 
-        save_name = f'06_asymmetry_time-series'
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
+        if plot_enabled(plot_config, '06_asymmetry_time-series'):
+            save_name = '06_asymmetry_time-series'
+            plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
+            particular_save_str = save_name + f'_{ch_names[i]}.png'
 
-        fig, ax = plt.subplots(figsize=(12,7))
-        ax.plot(window_pair_times, asymmetries_ppm[i])
-        ax.set_title(plot_title, fontdict=dict(size=14))
-        ax.set_ylabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
-        ax.set_xlabel(f'Time (sec)', fontdict=dict(size=12.5))
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
-        fig.savefig(save_dir / particular_save_str)
-        plt.close(fig)
+            fig, ax = plt.subplots(figsize=(12,7))
+            ax.plot(window_pair_times, asymmetries_ppm[i])
+            ax.set_title(plot_title, fontdict=dict(size=14))
+            ax.set_ylabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
+            ax.set_xlabel('Time (sec)', fontdict=dict(size=12.5))
+            style_ax(ax)
+            fig.savefig(save_dir / particular_save_str)
+            plt.close(fig)
 
-        save_name = f'07_asymmetry_hist'
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
+        if plot_enabled(plot_config, '07_asymmetry_hist'):
+            save_name = '07_asymmetry_hist'
+            plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
+            particular_save_str = save_name + f'_{ch_names[i]}.png'
 
-        num_bins = freedman_diaconis_rule(asymmetries_ppm[i])
+            num_bins = freedman_diaconis_rule(asymmetries_ppm[i])
 
-        fig, ax = plt.subplots(figsize=(10,7))
-        n, bin_edges = np.histogram(asymmetries_ppm[i], bins=num_bins)
-        yerr = np.sqrt(n)
-        yerr[n == 0] = 1.0
-        bin_centers = bin_edges[:-1] + 0.5*(bin_edges[1] - bin_edges[0])
-        # ax.stairs(n, bin_edges, color='blue') # linewidth=2
-        ax.errorbar(bin_centers, n, yerr=yerr, fmt='.', ecolor='black', elinewidth=1.5, capsize=4)
-        popt, perr, chi2_red = fit_gaussian_to_hist(n, bin_centers, verbose=verbose)
-        fit_ok = np.any(popt)
+            fig, ax = plt.subplots(figsize=(10,7))
+            n, bin_edges = np.histogram(asymmetries_ppm[i], bins=num_bins)
+            yerr = np.sqrt(n)
+            yerr[n == 0] = 1.0
+            bin_centers = bin_edges[:-1] + 0.5*(bin_edges[1] - bin_edges[0])
+            ax.errorbar(bin_centers, n, yerr=yerr, fmt='.', ecolor='black', elinewidth=1.5, capsize=4)
+            popt, perr, chi2_red = fit_gaussian_to_hist(n, bin_centers, verbose=verbose)
+            fit_ok = np.any(popt)
 
-        if fit_ok:
-            data_mean, mean_err = popt[1], perr[1]
-            std_dev,  std_err   = popt[2], perr[2]
-            chi2_line = rf"$\chi^2/\nu$ = {chi2_red:.3f}"
-            curve_domain = np.linspace(bin_centers[0], bin_centers[-1], 500)
-            ax.plot(curve_domain, gaussian(curve_domain, *popt), color='red')
+            if fit_ok:
+                data_mean, mean_err = popt[1], perr[1]
+                std_dev,  std_err   = popt[2], perr[2]
+                chi2_line = rf"$\chi^2/\nu$ = {chi2_red:.3f}"
+                curve_domain = np.linspace(bin_centers[0], bin_centers[-1], 500)
+                ax.plot(curve_domain, gaussian(curve_domain, *popt), color='red')
+            else:
+                data_mean = float(np.mean(asymmetries_ppm[i]))
+                std_dev   = float(np.std(asymmetries_ppm[i], ddof=1))
+                mean_err  = std_dev / np.sqrt(asymmetries_ppm[i].size)
+                std_err   = std_dev / np.sqrt(2 * (asymmetries_ppm[i].size - 1))
+                chi2_line = r"$\chi^2/\nu$ = n/a"
 
-        else:
-            data_mean = float(np.mean(asymmetries_ppm[i]))
-            std_dev   = float(np.std(asymmetries_ppm[i], ddof=1))
-            mean_err  = std_dev / np.sqrt(asymmetries_ppm[i].size)  # standard error on the mean
-            std_err   = std_dev / np.sqrt(2 * (asymmetries_ppm[i].size - 1)) 
-            chi2_line = r"$\chi^2/\nu$ = n/a"
+            info = "\n".join([
+                rf"$\mu$ = {round(data_mean, mean_err)} ppm",
+                rf"$\sigma$ = {round(std_dev, std_err)} ppm",
+                chi2_line,
+                rf"No. of bins = {num_bins:d}",
+            ])
+            at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
+                            frameon=True, borderpad=0.5)
+            at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
+            ax.add_artist(at)
+            ax.set_yscale('log')
+            ax.set_title(plot_title, fontdict=dict(size=14))
+            ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
+            ax.set_xlabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
+            style_ax(ax)
+            fig.savefig(save_dir / particular_save_str)
+            plt.close(fig)
+
+    return asymmetries_ppm * 1e-6
 
 
-        info = "\n".join([
-            rf"$\mu$ = {round(data_mean, mean_err)} ppm",
-            rf"$\sigma$ = {round(std_dev, std_err)} ppm",
-            chi2_line,
-            rf"No. of bins = {num_bins:d}",
-        ])
-        at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
-                        frameon=True, borderpad=0.5)
-        at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
-        ax.add_artist(at)
-        ax.set_yscale('log')
-        ax.set_title(plot_title, fontdict=dict(size=14))
-        ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
-        ax.set_xlabel(f'Asymmetry (ppm)', fontdict=dict(size=12.5))
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
-        fig.savefig(save_dir / particular_save_str)
-        plt.close(fig)
+def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbose=False):
 
-        save_name = f'08_asymmetry_time-series_fft'
-        plot_title = f'{save_dir.stem}, {save_name[3:]}_{CH_NAME_DICT[str(i)]}'
-        particular_save_str = save_name + f'_{CH_NAME_DICT[str(i)]}.png'
-
-        fig, ax = plt.subplots(figsize=(12,7))
-        ax.plot(asymmetries_ppm[i]*1e6)
-        ax.set_title(plot_title, fontdict=dict(size=14))
-        ax.set_ylabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
-        ax.set_xlabel(f'Time', fontdict=dict(size=12.5))
-        ax.xaxis.set_ticks_position('both')
-        ax.yaxis.set_ticks_position('both')
-        ax.xaxis.minorticks_on()
-        ax.yaxis.minorticks_on()
-        fig.savefig(save_dir / particular_save_str)
-        plt.close(fig)
-
-    return asymmetries_ppm*1e-6
-
-def compute_resolution(ddf, save_dir, data1_name, data2_name, verbose=False):
+    if not plot_enabled(plot_config, '09_ddf_hist'):
+        return
 
     ddf_ppm = ddf*1e6
     save_name = f'09_ddf_hist_{data1_name}-{data2_name}'
@@ -560,7 +577,6 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, verbose=False):
     yerr = np.sqrt(n)
     yerr[n == 0] = 1.0
     bin_centers = bin_edges[:-1] + 0.5*(bin_edges[1] - bin_edges[0])
-    # ax.stairs(n, bin_edges, color='blue') # linewidth=2
     ax.errorbar(bin_centers, n, yerr=yerr, fmt='.', color='black', ecolor='black', elinewidth=1.5, capsize=4)
     popt, perr, chi2_red = fit_gaussian_to_hist(n, bin_centers, verbose=verbose)
     fit_ok = np.any(popt)
@@ -571,14 +587,12 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, verbose=False):
         chi2_line = rf"$\chi^2/\nu$ = {chi2_red:.3f}"
         curve_domain = np.linspace(bin_centers[0], bin_centers[-1], 500)
         ax.plot(curve_domain, gaussian(curve_domain, *popt), color='red')
-
     else:
         data_mean = float(np.mean(ddf_ppm))
         std_dev   = float(np.std(ddf_ppm, ddof=1))
-        mean_err  = std_dev / np.sqrt(ddf_ppm.size)  # standard error on the mean
-        std_err   = std_dev / np.sqrt(2 * (ddf_ppm.size - 1)) 
+        mean_err  = std_dev / np.sqrt(ddf_ppm.size)
+        std_err   = std_dev / np.sqrt(2 * (ddf_ppm.size - 1))
         chi2_line = r"$\chi^2/\nu$ = n/a"
-
 
     info = "\n".join([
         rf"$\mu$ = {round(data_mean, mean_err)} ppm",
@@ -595,14 +609,78 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, verbose=False):
     ax.set_title(plot_title, fontdict=dict(size=14))
     ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
     ax.set_xlabel(f'asym_{data1_name}-asym_{data2_name} (ppm)', fontdict=dict(size=12.5))
-    ax.xaxis.set_ticks_position('both')
-    ax.yaxis.set_ticks_position('both')
-    ax.xaxis.minorticks_on()
-    ax.yaxis.minorticks_on()
+    style_ax(ax)
     fig.savefig(save_dir / particular_save_str)
     plt.close(fig)
 
-    return
+
+def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
+    """Scatter and binned-mean plots of DDF vs RDF to diagnose differential nonlinearity."""
+
+    rdf_ppm = rdf * 1e6
+    ddf_ppm = ddf * 1e6
+
+    if plot_enabled(plot_config, '10_dnl_scatter'):
+        save_name = f'10_dnl_scatter_{ch1_name}-{ch2_name}'
+        fig, ax = plt.subplots(figsize=(10, 7))
+        ax.scatter(rdf_ppm, ddf_ppm, marker='.', color='black', s=4)
+        ax.set_title(f'{save_dir.stem}, DNL scatter {ch1_name}-{ch2_name}', fontdict=dict(size=14))
+        ax.set_xlabel('RDF (ppm)', fontdict=dict(size=12.5))
+        ax.set_ylabel('DDF (ppm)', fontdict=dict(size=12.5))
+        style_ax(ax)
+        fig.savefig(save_dir / (save_name + '.png'))
+        plt.close(fig)
+
+    # Bin RDF and compute mean DDF per bin
+    bins = np.linspace(rdf_ppm.min(), rdf_ppm.max(), 21)
+    idx = np.digitize(rdf_ppm, bins)
+
+    centers, means, ses = [], [], []
+    for b in range(1, len(bins)):
+        sel = idx == b
+        n = sel.sum()
+        if n > 1:
+            m = ddf_ppm[sel].mean()
+            se = ddf_ppm[sel].std(ddof=1) / np.sqrt(n)
+            centers.append(0.5 * (bins[b-1] + bins[b]))
+            means.append(m)
+            ses.append(se)
+
+    if len(centers) < 2:
+        return
+
+    centers = np.array(centers)
+    means = np.array(means)
+    ses = np.array(ses)
+
+    # Weighted linear fit (np.polyfit weights are 1/sigma, not 1/sigma^2)
+    coeffs, cov = np.polyfit(centers, means, deg=1, w=1.0/ses, cov=True)
+    slope, intercept = coeffs
+    slope_err = np.sqrt(cov[0, 0])
+    intercept_err = np.sqrt(cov[1, 1])
+
+    model = np.polyval(coeffs, centers)
+    chi2 = np.sum(((means - model) / ses)**2)
+    dof = len(centers) - 2
+    print(f"DNL {ch1_name}-{ch2_name}: slope = {slope:+.3e} +/- {slope_err:.3e}  ({slope/slope_err:+.1f}σ)")
+    print(f"    intercept = {intercept:+.3f} +/- {intercept_err:.3f} ppm,  χ²/dof = {chi2:.1f}/{dof} = {chi2/dof:.2f}")
+
+    if plot_enabled(plot_config, '11_dnl_binned'):
+        save_name = f'11_dnl_binned_{ch1_name}-{ch2_name}'
+        xfit = np.linspace(centers.min(), centers.max(), 200)
+        fig, ax = plt.subplots(figsize=(10, 7))
+        ax.errorbar(centers, means, yerr=ses, fmt='o', capsize=3, color='black')
+        ax.axhline(0, color='red', linestyle='--', linewidth=1)
+        ax.plot(xfit, np.polyval(coeffs, xfit), color='blue',
+                label=f'linear fit (slope {slope:+.2e})')
+        ax.set_title(f'{save_dir.stem}, DNL binned {ch1_name}-{ch2_name}', fontdict=dict(size=14))
+        ax.set_xlabel('RDF (ppm)', fontdict=dict(size=12.5))
+        ax.set_ylabel('Binned mean DDF (ppm)', fontdict=dict(size=12.5))
+        ax.legend()
+        style_ax(ax)
+        fig.savefig(save_dir / (save_name + '.png'))
+        plt.close(fig)
+
 
 def main():
 
@@ -612,14 +690,31 @@ def main():
     parser.add_argument("-d", "--dir", type=str, default="./tmp/", help="Directory to save outputs (default: `./tmp/`")
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output. (default: False)')
     parser.add_argument('--fft-dc', action='store_true', help='Enables finding carrier frequency via FFT during digital down conversion. Useful if the data from the FPGA is not at DC. (default: False)')
-    parser.add_argument("-iq", "--iq-rotation-mode", type=str.lower, default="quad", choices=['quad', 'running'], help='Sets the mode for doing the IQ rotation. \"quad\" simply adds the I and Q in quadrature (and square roots). \"running\" does the proper tracking I and Q phase and rotates by that. (default: quad)')
-    parser.add_argument('-chs', '--channels', nargs='+', default=[1,2,3,4], type=int, help='Sets which channels are processed. (default: all)')
+    parser.add_argument("-iq", "--iq-rotation-mode", type=str.lower, default="quad", choices=['quad', 'running'],
+                        help='Sets the mode for doing the IQ rotation. "quad" simply adds the I and Q in quadrature. '
+                             '"running" tracks and rotates by the running I/Q phase. Requires --fft-dc. (default: quad)')
+    parser.add_argument('-chs', '--channels', nargs='+', default=[1,2,3,4], type=int,
+                        help='Sets which physical channels (1-4) to process. format_data always decodes all channels; '
+                             'this selects which are analyzed downstream. (default: all)')
+    parser.add_argument('--plot-config', type=str, default=DEFAULT_PLOT_CONFIG,
+                        help=f'Path to YAML file controlling which plots are generated. '
+                             f'Written as a template with all plots enabled if the file does not exist. '
+                             f'(default: {DEFAULT_PLOT_CONFIG})')
     args = parser.parse_args()
+
+    if args.iq_rotation_mode == 'running' and not args.fft_dc:
+        parser.error("--iq-rotation-mode running requires --fft-dc")
+
+    invalid_chs = [ch for ch in args.channels if ch not in CH_INDEX_DICT]
+    if invalid_chs:
+        parser.error(f"Invalid channel(s): {invalid_chs}. Valid values are 1-4.")
 
     try:
         outdir = resolve_output_dir(args.dir, parser.get_default("dir"))
     except FileNotFoundError as err:
         parser.error(str(err))
+
+    plot_config = load_plot_config(Path(args.plot_config))
 
     run_dir = run_directory(args.filename, outdir)
 
@@ -636,32 +731,35 @@ def main():
 
     buffer_np, first_ts, edge_times, avg_gate_freq = format_data(args.filename)
 
-    data_dc = process_to_dc(buffer_np, args.fft_dc, args.iq_rotation_mode, run_dir, args.verbose)
+    # Select only the requested physical channels, maintaining sorted array order
+    ch_indices = sorted(CH_INDEX_DICT[ch] for ch in args.channels)
+    ch_names = [CH_NAME_DICT[str(idx)] for idx in ch_indices]
+    buffer_np = buffer_np[ch_indices, :]
+
+    data_dc = process_to_dc(buffer_np, args.fft_dc, args.iq_rotation_mode, run_dir, ch_names, plot_config, args.verbose)
     buffer_np = None
 
-    # XXX 04 figure (time series of down-mixed AND rotated data)
-
-    fft_time_series(data_dc, run_dir, '05_15-625MHz_fft', sample_freq=SAMPLE_FREQ, truncate_for_speed=True, units='MHz')
+    fft_time_series(data_dc, run_dir, '05_15-625MHz_fft', sample_freq=SAMPLE_FREQ,
+                    truncate_for_speed=True, ch_names=ch_names, plot_config=plot_config, units='MHz')
 
     data_integrated, window_start_times = gate_means(data_dc, first_ts, edge_times)
 
-    # fft_time_series(data_integrated, run_dir, '07_integrated-data_fft', sample_freq=avg_gate_freq, truncate_for_speed=False, units='Hz')
+    asymmetries = construct_asymmetries(data_integrated, window_start_times, run_dir, ch_names, plot_config, verbose=args.verbose)
 
-    # Does 06, 07, 08 figures too
-    asymmetries = construct_asymmetries(data_integrated, window_start_times, run_dir)
+    # Figure 08: FFT of asymmetry time series.
+    # Each asymmetry spans one window pair (two gate periods), so the asymmetry rate is avg_gate_freq/2.
+    fft_time_series(asymmetries * 1e6, run_dir, '08_asymmetry_fft', sample_freq=avg_gate_freq/2,
+                    truncate_for_speed=False, ch_names=ch_names, plot_config=plot_config, units='Hz')
 
     i = 0
     while i < asymmetries.shape[0]:
         j = i + 1
         while j < asymmetries.shape[0]:
-
             ddf = asymmetries[i] - asymmetries[j]
-            compute_resolution(ddf, run_dir, CH_NAME_DICT[str(j)], CH_NAME_DICT[str(i)], verbose=args.verbose)
-
-            j+=1
-        i+=1
-
-
+            compute_resolution(ddf, run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
+            plot_diff_nonlinearity(asymmetries[i], ddf, run_dir, ch_names[i], ch_names[j], plot_config)
+            j += 1
+        i += 1
 
 
 if __name__ == "__main__":

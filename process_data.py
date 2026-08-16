@@ -719,9 +719,9 @@ def main():
     if args.save_ddc_data:
 
         data_ddc_dict = {}
-        for i in ch_indices:
+        for i, ch_indices_i in enumerate(ch_indices):
             data_ddc_dict.update({
-                f'data_dc_ch{CH_NAME_DICT[str(i)]}': data_dc[i]
+                f'data_dc_ch{CH_NAME_DICT[str(ch_indices_i)]}': data_dc[i]
             })
         np.savez(run_dir / 'data_ddc.npz', first_ts=first_ts, edge_times=edge_times, avg_gate_freq=avg_gate_freq, **data_ddc_dict)
         data_ddc_dict = None

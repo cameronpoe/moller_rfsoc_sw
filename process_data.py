@@ -676,6 +676,7 @@ def main():
                         help=f'Path to YAML file controlling which plots are generated. '
                              f'Written as a template with all plots enabled if the file does not exist. '
                              f'(default: {DEFAULT_PLOT_CONFIG})')
+    parser.add_argument('--save-ddc-data', action='store_true', help='Stores data for channels called in `-chs` to a file. Data is taken from after digital down conversion and I/Q rotation. (default: False)')
     args = parser.parse_args()
 
     if args.iq_rotation_mode == 'running' and not args.fft_dc:
@@ -714,6 +715,16 @@ def main():
 
     data_dc = process_to_dc(buffer_np, args.fft_dc, args.iq_rotation_mode, run_dir, ch_names, plot_config, args.verbose)
     buffer_np = None
+
+    if args.save_ddc_data:
+
+        data_ddc_dict = {}
+        for i in ch_indices:
+            data_ddc_dict.update({
+                f'data_dc_ch{CH_NAME_DICT[str(i)]}': data_dc[i]
+            })
+        np.savez(run_dir / 'data_ddc.npz', first_ts=first_ts, edge_times=edge_times, avg_gate_freq=avg_gate_freq, **data_ddc_dict)
+        data_ddc_dict = None
 
     fft_time_series(data_dc, run_dir, '05_15-625MHz_fft', sample_freq=SAMPLE_FREQ,
                     truncate_for_speed=True, ch_names=ch_names, plot_config=plot_config, units='MHz')

@@ -99,43 +99,48 @@ def freedman_diaconis_rule(binned_data):
         num_bins = 10
     return num_bins
 
-
 def style_ax(ax):
     ax.xaxis.set_ticks_position('both')
     ax.yaxis.set_ticks_position('both')
     ax.xaxis.minorticks_on()
     ax.yaxis.minorticks_on()
 
-
-def load_plot_config(path: Path) -> dict:
-    """Load plot-enable flags from a YAML file.
+def load_config(path: Path) -> dict:
+    """Load save- and plot-enable flags from a YAML file.
 
     If the file does not exist, write a template with all plots enabled and
     return a dict with all plots enabled.
     """
-    all_plots = {
-        '03_down-mixed_iq_phase':    True,
-        '04_15-625MHz_time-series':  True,
-        '05_15-625MHz_fft':          True,
-        '06_asymmetry_time-series':  True,
-        '07_asymmetry_hist':         True,
-        '08_asymmetry_fft':          True,
-        '09_ddf_hist':               True,
-        '10_dnl_scatter':            True,
-        '11_dnl_binned':             True,
+    all_config = {
+        'save_data': {
+            'data_01_raw-data':          True,
+            'data_02_ddc-iq-rot':        True,
+            'data_03_integrated':        True,
+            'data_04_asymmetries':       True,
+            'data_05_ddf':               True,
+        },
+        'plots': {
+            '03_down-mixed_iq_phase':    True,
+            '04_15-625MHz_time-series':  True,
+            '05_15-625MHz_fft':          True,
+            '06_asymmetry_time-series':  True,
+            '07_asymmetry_hist':         True,
+            '08_asymmetry_fft':          True,
+            '09_ddf_hist':               True,
+            '10_dnl_scatter':            True,
+            '11_dnl_binned':             True,
+        }
     }
     if not path.exists():
         with open(path, 'w') as f:
-            yaml.dump({'plots': all_plots}, f, default_flow_style=False)
-        return all_plots
+            yaml.dump({'config': all_config}, f, default_flow_style=False)
+        return all_config
     with open(path) as f:
         config = yaml.safe_load(f)
-    return config.get('plots', all_plots)
+    return config.get('config', all_config)
 
-
-def plot_enabled(config: dict, name: str) -> bool:
+def is_enabled(config: dict, name: str) -> bool:
     return config.get(name, True)
-
 
 def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
     """Resolve the -d/--dir argument to an existing directory.
@@ -164,7 +169,6 @@ def resolve_output_dir(value: str, default: str = DEFAULT_DIR) -> Path:
         f"Could not find directory {value!r} relative to {Path.cwd()} or as an absolute path."
     )
 
-
 def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
     """Return <outdir>/<stem>, creating it, optionally emptying it first."""       
     stem = Path(filename).stem
@@ -179,7 +183,6 @@ def run_directory(filename: str, outdir: Path, clean: bool = False) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
-
 def clear_directory(target: Path) -> int:
     """Remove everything inside `target`, leaving the directory itself. Returns count."""
     removed = 0
@@ -191,8 +194,7 @@ def clear_directory(target: Path) -> int:
         removed += 1
     return removed
 
-
-def format_data(filename):
+def format_data(filename, save_dir, save_config):
 
     data = np.fromfile(filename, dtype=np.uint64)
     data_gate = np.fromfile(filename + '_gate', dtype=np.uint64)
@@ -239,8 +241,10 @@ def format_data(filename):
     even_mask = np.arange(buffer_np.shape[0])%2 == 0
     buffer_np = buffer_np[even_mask,:] + 1j * buffer_np[~even_mask,:]
 
-    return buffer_np, first_ts, edge_times, avg_gate_freq
+    if is_enabled(save_config, 'data_01_raw-data'):
+        np.savez(save_dir / 'data_01_raw-data', data=buffer_np, first_ts=first_ts, edge_times=edge_times, avg_gate_freq=avg_gate_freq, ACLK_FREQ=ACLK_FREQ, WORDS_PER_PACKET=WORDS_PER_PACKET, HEADER_WORDS=HEADER_WORDS)
 
+    return buffer_np, first_ts, edge_times, avg_gate_freq
 
 def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_config, verbose=False, fft_bins=1):
 
@@ -289,7 +293,7 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
         iq_data = iq_data * np.exp(-1j * (2*np.pi*carrier_freqs[:,:,np.newaxis]/SAMPLE_FREQ*np.arange(bin_samps)))
         carrier_freqs = None
 
-    if plot_enabled(plot_config, '03_down-mixed_iq_phase'):
+    if is_enabled(plot_config, '03_down-mixed_iq_phase'):
         save_name = '03_down-mixed_iq_phase'
         for i in range(iq_data.shape[0]):
             plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
@@ -330,7 +334,7 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
 
     iq_data = np.real(iq_data.reshape((-1, new_num_samps))).astype(np.float64)
 
-    if plot_enabled(plot_config, '04_15-625MHz_time-series'):
+    if is_enabled(plot_config, '04_15-625MHz_time-series'):
         save_name = '04_15-625MHz_time-series'
         for i in range(iq_data.shape[0]):
             plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
@@ -351,7 +355,7 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
 
 def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, ch_names, plot_config, units='Hz'):
 
-    if not plot_enabled(plot_config, save_name):
+    if not is_enabled(plot_config, save_name):
         return
 
     unit_norm = 1
@@ -470,7 +474,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
 
     for i in range(means.shape[0]):
 
-        if plot_enabled(plot_config, '06_asymmetry_time-series'):
+        if is_enabled(plot_config, '06_asymmetry_time-series'):
             save_name = '06_asymmetry_time-series'
             plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
             particular_save_str = save_name + f'_{ch_names[i]}.png'
@@ -484,7 +488,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
 
-        if plot_enabled(plot_config, '07_asymmetry_hist'):
+        if is_enabled(plot_config, '07_asymmetry_hist'):
             save_name = '07_asymmetry_hist'
             plot_title = f'{save_dir.stem}, {save_name[3:]}_{ch_names[i]}'
             particular_save_str = save_name + f'_{ch_names[i]}.png'
@@ -536,7 +540,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
 
 def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbose=False):
 
-    if not plot_enabled(plot_config, '09_ddf_hist'):
+    if not is_enabled(plot_config, '09_ddf_hist'):
         return
 
     ddf_ppm = ddf*1e6
@@ -596,7 +600,7 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
     rdf_ppm = rdf * 1e6
     ddf_ppm = ddf * 1e6
 
-    if plot_enabled(plot_config, '10_dnl_scatter'):
+    if is_enabled(plot_config, '10_dnl_scatter'):
         save_name = f'10_dnl_scatter_{ch1_name}-{ch2_name}'
         fig, ax = plt.subplots(figsize=(10, 7))
         ax.scatter(rdf_ppm, ddf_ppm, marker='.', color='black', s=4)
@@ -641,7 +645,7 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
     print(f"DNL {ch1_name}-{ch2_name}: slope = {slope:+.3e} +/- {slope_err:.3e}  ({slope/slope_err:+.1f}σ)")
     print(f"    intercept = {intercept:+.3f} +/- {intercept_err:.3f} ppm,  χ²/dof = {chi2:.1f}/{dof} = {chi2/dof:.2f}")
 
-    if plot_enabled(plot_config, '11_dnl_binned'):
+    if is_enabled(plot_config, '11_dnl_binned'):
         save_name = f'11_dnl_binned_{ch1_name}-{ch2_name}'
         xfit = np.linspace(centers.min(), centers.max(), 200)
         fig, ax = plt.subplots(figsize=(10, 7))
@@ -672,8 +676,8 @@ def main():
     parser.add_argument('-chs', '--channels', nargs='+', default=[1,2,3,4], type=int,
                         help='Sets which physical channels (1-4) to process. format_data always decodes all channels; '
                              'this selects which are analyzed downstream. (default: all)')
-    parser.add_argument('--plot-config', type=str, default=DEFAULT_PLOT_CONFIG,
-                        help=f'Path to YAML file controlling which plots are generated. '
+    parser.add_argument('--config', type=str, default=DEFAULT_PLOT_CONFIG,
+                        help=f'Path to YAML file controlling which data sets are saved and which plots are generated. '
                              f'Written as a template with all plots enabled if the file does not exist. '
                              f'(default: {DEFAULT_PLOT_CONFIG})')
     parser.add_argument('--save-ddc-data', action='store_true', help='Stores data for channels called in `-chs` to a file. Data is taken from after digital down conversion and I/Q rotation. (default: False)')
@@ -691,7 +695,9 @@ def main():
     except FileNotFoundError as err:
         parser.error(str(err))
 
-    plot_config = load_plot_config(Path(args.plot_config))
+    all_config = load_config(Path(args.config))
+    save_config = all_config.get('save_data', None)
+    plot_config = all_config.get('plots', None)
 
     run_dir = run_directory(args.filename, outdir)
 
@@ -706,7 +712,7 @@ def main():
     if args.verbose:
         print(f"Writing outputs to {run_dir}")
 
-    buffer_np, first_ts, edge_times, avg_gate_freq = format_data(args.filename)
+    buffer_np, first_ts, edge_times, avg_gate_freq = format_data(args.filename, run_dir, save_config)
 
     # Select only the requested physical channels, maintaining sorted array order
     ch_indices = sorted(CH_INDEX_DICT[ch] for ch in args.channels)

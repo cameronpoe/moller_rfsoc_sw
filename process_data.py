@@ -531,6 +531,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
             ax.set_xlabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
+            ax.set_ylim(bottom=0.2)
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
@@ -588,6 +589,7 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbo
     ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
     ax.set_xlabel(f'asym_{data1_name}-asym_{data2_name} (ppm)', fontdict=dict(size=12.5))
     style_ax(ax)
+    ax.set_ylim(bottom=0.2)
     fig.savefig(save_dir / particular_save_str)
     plt.close(fig)
 
@@ -660,6 +662,77 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
         style_ax(ax)
         fig.savefig(save_dir / (save_name + '.png'))
         plt.close(fig)
+
+# def plot_four_fig():
+
+#     rdf1_ppm, rdf2_ppm = rdf1*1e6, rdf2*1e6
+#     ddf = rdf1 - rdf2
+#     ddf_ppm = ddf*1e6
+
+#     res, res_unc, n_ddf, bin_centers, popt_ddf, _, residuals, chi2, dof = compute_resolution(ddf)
+
+#     fig, axs = plt.subplots(2,2, figsize=(10,8))
+#     fig.subplots_adjust(hspace=0)
+#     fig.subplots_adjust(wspace=0)
+
+#     n, bins, _ = axs[0,0].hist(rdf1_ppm, bins=100, histtype='step', color='purple', orientation='horizontal')
+#     axs[0,0].text(0.08*np.max(n), 0.85*bins[-1], f'$\\sigma={round(np.std(rdf1_ppm), decimals=1)}$ ppm', fontdict=dict(size=14))
+#     axs[0,0].set_xscale('log')
+#     axs[0,0].minorticks_on()
+#     axs[0,0].xaxis.tick_top()
+#     axs[0,0].set_ylabel(f'{ch1_name} rel. diff. (ppm)')
+
+#     h = axs[0,1].hist2d(rdf1_ppm, rdf2_ppm, bins=100, cmap='turbo', norm=LogNorm())
+#     axs[0,1].set_xticks([])
+#     axs[0,1].set_yticks([])
+#     pos = axs[0, 1].get_position()
+
+#     # Create a new axis for the colorbar
+#     cbar_ax = fig.add_axes([
+#         pos.x1 + 0.01,  # x: slightly to the right of axs[0,1]
+#         pos.y0,         # y: same bottom as axs[0,1]
+#         0.02,           # width of colorbar
+#         pos.height      # same height as axs[0,1]
+#     ])
+#     fig.colorbar(h[3], cax=cbar_ax)
+
+#     bin_width = bin_centers[1] - bin_centers[0]
+#     bin_edges = np.concatenate([bin_centers - 0.5*bin_width, np.array([bin_centers[-1] + 0.5*bin_width])])
+#     axs[1,0].stairs(n_ddf, bin_edges*1e6, fill=False, color='purple')
+#     mygauss_domain = np.linspace(bin_centers[0], bin_centers[-1], 300)
+#     axs[1,0].plot(mygauss_domain*1e6, mygaussian(mygauss_domain, *popt_ddf), color='teal')
+#     axs[1,0].text(0.2*bin_centers[-1]*1e6, 0.75*np.max(n_ddf), f'$\\sigma={round(res*1e6, res_unc*1e6)}$ ppm', fontdict=dict(size=14))
+#     axs[1,0].text(0.32*bin_centers[-1]*1e6, 0.15*np.max(n_ddf), f'$\\chi^2/dof={round(chi2/dof, sigfigs=3)}$', fontdict=dict(size=14))
+#     axs[1,0].set_yscale('log')
+#     axs[1,0].minorticks_on()
+#     axs[1,0].set_xlabel(f'{ch1_name} - {ch2_name} ddf (ppm)')
+
+#     n, bins, _ = axs[1,1].hist(rdf2_ppm, bins=100, histtype='step', color='purple')
+#     axs[1,1].text(0.2*bins[-1], 0.75*np.max(n), f'$\\sigma={round(np.std(rdf2_ppm), decimals=1)}$ ppm', fontdict=dict(size=14))
+#     axs[1,1].set_yscale('log')
+#     axs[1,1].minorticks_on()
+#     axs[1,1].yaxis.tick_right()
+#     axs[1,1].set_xlabel(f'{ch2_name} rel. diff (ppm)')
+
+#     fig.savefig(dir_path + 'ddf_rdfs_hist_plot')
+
+#     fig, axs = plt.subplots(3, 1, figsize=(10,8), sharex=True)
+#     window_pair_nums = np.arange(rdf1.size)
+#     axs[0].plot(window_pair_nums, rdf1_ppm)
+#     axs[1].plot(window_pair_nums, rdf2_ppm)
+#     axs[2].plot(window_pair_nums, ddf_ppm)
+#     axs[2].set_xlabel('Window pair number')
+#     axs[0].set_ylabel(f'{ch1_name} asymmetry (ppm)')
+#     axs[1].set_ylabel(f'{ch2_name} asymmetry (ppm)')
+#     axs[2].set_ylabel('ddf (ppm)')
+#     for ax in axs:
+#         ax.minorticks_on()
+#         ax.tick_params(which='both', direction='in',
+#                     top=True, right=True)
+#     fig.tight_layout()
+#     fig.savefig(dir_path + 'ddf_rdfs_time_series_plot')
+
+#     return res, res_unc
 
 
 def main():

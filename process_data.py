@@ -659,7 +659,7 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config, 
         fig, ax = plt.subplots(figsize=(10, 7))
 
         info = "\n".join([
-            f'linear fit (slope {slope:+.2e} $\pm$ {slope_err:.2e})',
+            rf'linear fit (slope {slope:+.2e} $\pm$ {slope_err:.2e})',
             rf'$\chi^2/\nu$ = {chi2/dof:.2f}'
         ])
         at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),

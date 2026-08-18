@@ -300,10 +300,10 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
             particular_save_str = save_name + f'_{ch_names[i]}.png'
 
             fig, ax = plt.subplots(figsize=(12,7))
-            ax.plot(np.unwrap(np.angle(iq_data[i].flatten())))
+            ax.plot(np.arange(iq_data.shape[-1])/SAMPLE_FREQ, np.unwrap(np.angle(iq_data[i].flatten())))
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('I/Q phase (rad.)', fontdict=dict(size=12.5))
-            ax.set_xlabel('Time', fontdict=dict(size=12.5))
+            ax.set_xlabel('Time (sec)', fontdict=dict(size=12.5))
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
@@ -340,10 +340,10 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
             particular_save_str = save_name + f'_{ch_names[i]}.png'
 
             fig, ax = plt.subplots(figsize=(12,7))
-            ax.plot(iq_data[i])
+            ax.plot(np.arange(iq_data.shape[-1])/SAMPLE_FREQ, iq_data[i])
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('Amplitude (arb.)', fontdict=dict(size=12.5))
-            ax.set_xlabel('Time', fontdict=dict(size=12.5))
+            ax.set_xlabel('Time (sec)', fontdict=dict(size=12.5))
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)

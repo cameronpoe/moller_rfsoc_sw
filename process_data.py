@@ -20,7 +20,7 @@ HEADER_WORDS = 2
 WORDS_PER_PACKET = 124928
 
 DEFAULT_DIR = "./tmp/"
-DEFAULT_PLOT_CONFIG = "./plots.yaml"
+DEFAULT_PLOT_CONFIG = "./config.yaml"
 
 INFO_DICT = {}
 
@@ -304,7 +304,6 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('I/Q phase (rad.)', fontdict=dict(size=12.5))
             ax.set_xlabel('Time', fontdict=dict(size=12.5))
-            fig.subplots_adjust(bottom=0.13)
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
@@ -345,7 +344,6 @@ def process_to_dc(iq_data, downmix_carrier, mode, save_dir, ch_names, plot_confi
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('Amplitude (arb.)', fontdict=dict(size=12.5))
             ax.set_xlabel('Time', fontdict=dict(size=12.5))
-            fig.subplots_adjust(bottom=0.13)
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
@@ -400,7 +398,6 @@ def fft_time_series(data, save_dir, save_name, sample_freq, truncate_for_speed, 
         ax.set_xlabel(f'Frequency ({units})', fontdict=dict(size=12.5))
         at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
         ax.add_artist(at)
-        fig.subplots_adjust(bottom=0.13)
         style_ax(ax)
         fig.savefig(save_dir / particular_save_str)
         plt.close(fig)
@@ -507,6 +504,9 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
             if fit_ok:
                 data_mean, mean_err = popt[1], perr[1]
                 std_dev,  std_err   = popt[2], perr[2]
+                std_dev_nofit = float(np.std(asymmetries_ppm[i], ddof=1))
+                std_dev_nofit_err = std_dev / np.sqrt(2 * (asymmetries_ppm[i].size - 1))
+                std_dev_line = rf"$\sigma$ (fit) = {round(std_dev, std_err)} ppm" + '\n' + rf"$\sigma$ (STD) = {round(std_dev_nofit, std_dev_nofit_err)} ppm"
                 chi2_line = rf"$\chi^2/\nu$ = {chi2_red:.3f}"
                 curve_domain = np.linspace(bin_centers[0], bin_centers[-1], 500)
                 ax.plot(curve_domain, gaussian(curve_domain, *popt), color='red')
@@ -515,11 +515,12 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
                 std_dev   = float(np.std(asymmetries_ppm[i], ddof=1))
                 mean_err  = std_dev / np.sqrt(asymmetries_ppm[i].size)
                 std_err   = std_dev / np.sqrt(2 * (asymmetries_ppm[i].size - 1))
+                std_dev_line = rf"$\sigma$ (STD) = {round(std_dev, std_err)} ppm"
                 chi2_line = r"$\chi^2/\nu$ = n/a"
 
             info = "\n".join([
                 rf"$\mu$ = {round(data_mean, mean_err)} ppm",
-                rf"$\sigma$ = {round(std_dev, std_err)} ppm",
+                std_dev_line,
                 chi2_line,
                 rf"No. of bins = {num_bins:d}",
             ])
@@ -531,7 +532,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
             ax.set_title(plot_title, fontdict=dict(size=14))
             ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
             ax.set_xlabel('Asymmetry (ppm)', fontdict=dict(size=12.5))
-            ax.set_ylim(bottom=0.2)
+            ax.set_ylim(bottom=0.4)
             style_ax(ax)
             fig.savefig(save_dir / particular_save_str)
             plt.close(fig)
@@ -589,7 +590,7 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbo
     ax.set_ylabel('Counts per bin', fontdict=dict(size=12.5))
     ax.set_xlabel(f'asym_{data1_name}-asym_{data2_name} (ppm)', fontdict=dict(size=12.5))
     style_ax(ax)
-    ax.set_ylim(bottom=0.2)
+    ax.set_ylim(bottom=0.4)
     fig.savefig(save_dir / particular_save_str)
     plt.close(fig)
 

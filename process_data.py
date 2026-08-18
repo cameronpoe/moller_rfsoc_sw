@@ -543,7 +543,7 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
 def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbose=False):
 
     if not is_enabled(plot_config, '09_ddf_hist'):
-        return
+        return (0, 0), (0, 0), 0, 0, 0
 
     ddf_ppm = ddf*1e6
     save_name = f'09_ddf_hist_{data1_name}-{data2_name}'
@@ -657,14 +657,23 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config, 
         save_name = f'11_dnl_binned_{ch1_name}-{ch2_name}'
         xfit = np.linspace(centers.min(), centers.max(), 200)
         fig, ax = plt.subplots(figsize=(10, 7))
+
+        info = "\n".join([
+            f'linear fit (slope {slope:+.2e})',
+            rf'$\chi^2/\nu$ = {chi2/dof:.2f}'
+        ])
+        at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
+                        frameon=True, borderpad=0.5)
+
         ax.errorbar(centers, means, yerr=ses, fmt='o', capsize=3, color='black')
         ax.axhline(0, color='red', linestyle='--', linewidth=1)
-        ax.plot(xfit, np.polyval(coeffs, xfit), color='blue',
-                label=f'linear fit (slope {slope:+.2e})')
+        ax.plot(xfit, np.polyval(coeffs, xfit), color='blue')
+        at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
+                            frameon=True, borderpad=0.5)
+        at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
         ax.set_title(f'{save_dir.stem}, DNL binned {ch1_name}-{ch2_name}', fontdict=dict(size=14))
         ax.set_xlabel('RDF (ppm)', fontdict=dict(size=12.5))
         ax.set_ylabel('Binned mean DDF (ppm)', fontdict=dict(size=12.5))
-        ax.legend()
         style_ax(ax)
         fig.savefig(save_dir / (save_name + '.png'))
         plt.close(fig)

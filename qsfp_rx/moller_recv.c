@@ -274,7 +274,10 @@ int main(int argc, char **argv) {
     while (!stop_flag) {
         int n = recvmmsg(sock, msgs, RECVMMSG_BATCH, MSG_WAITFORONE, NULL);
         if (n < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR) {
+                if (stop_flag) break;    /* Ctrl-C / SIGTERM during blocking recv */
+                continue;
+            }
             perror("recvmmsg");
             break;
         }

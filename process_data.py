@@ -595,10 +595,10 @@ def compute_resolution(rdf1, rdf2, save_dir, data1_name, data2_name, plot_config
     fig.savefig(save_dir / particular_save_str)
     plt.close(fig)
 
-    tail_mask = (rdf1*1e6 >= 1e3) | (rdf2*1e6 >= 1e3)
+    tail_mask = (np.abs(rdf1)*1e6 >= 1e3) | (np.abs(rdf2)*1e6 >= 1e3)
 
     fig, ax = plt.subplots(figsize=(10,7))
-    ax.scatter(rdf1[~tail_mask]*1e6, rdf2[~tail_mask]*1e6, marker='.', color='black')
+    ax.scatter(rdf1[~tail_mask]*1e6, rdf2[~tail_mask]*1e6, s=0.2, linewidth=0, color='black')
     ax.set_xlabel(f'RDF {data1_name} (ppm)')
     ax.set_ylabel(f'RDF {data2_name} (ppm)')
     ax.set_title(f'rdf_{data1_name}_vs_rdf_{data2_name}', fontdict=dict(size=14))

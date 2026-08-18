@@ -659,7 +659,7 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config, 
         fig, ax = plt.subplots(figsize=(10, 7))
 
         info = "\n".join([
-            f'linear fit (slope {slope:+.2e})',
+            f'linear fit (slope {slope:+.2e} $\pm$ {slope_err:.2e})',
             rf'$\chi^2/\nu$ = {chi2/dof:.2f}'
         ])
         at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
@@ -668,11 +668,9 @@ def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config, 
         ax.errorbar(centers, means, yerr=ses, fmt='o', capsize=3, color='black')
         ax.axhline(0, color='red', linestyle='--', linewidth=1)
         ax.plot(xfit, np.polyval(coeffs, xfit), color='blue')
-        at = AnchoredText(info, loc="upper right", prop=dict(size=10, family="monospace"),
-                            frameon=True, borderpad=0.5)
         at.patch.set(alpha=0.8, facecolor="white", edgecolor="0.7")
         ax.add_artist(at)
-        ax.set_title(f'{save_dir.stem}, DNL binned {ch1_name}-{ch2_name}', fontdict=dict(size=14))
+        ax.set_title(f'{save_dir.stem}, dnl_binned_{ch1_name}-{ch2_name}', fontdict=dict(size=14))
         ax.set_xlabel('RDF (ppm)', fontdict=dict(size=12.5))
         ax.set_ylabel('Binned mean DDF (ppm)', fontdict=dict(size=12.5))
         style_ax(ax)

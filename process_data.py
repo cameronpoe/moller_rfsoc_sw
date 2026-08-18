@@ -540,11 +540,12 @@ def construct_asymmetries(means, times, save_dir, ch_names, plot_config, verbose
     return asymmetries_ppm * 1e-6
 
 
-def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbose=False):
+def compute_resolution(rdf1, rdf2, save_dir, data1_name, data2_name, plot_config, verbose=False):
 
     if not is_enabled(plot_config, '09_ddf_hist'):
         return (0, 0), (0, 0), 0, 0, 0
 
+    ddf = rdf1 - rdf2
     ddf_ppm = ddf*1e6
     save_name = f'09_ddf_hist_{data1_name}-{data2_name}'
     plot_title = f'{save_dir.stem}, {save_name[3:]}'
@@ -592,6 +593,15 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbo
     style_ax(ax)
     ax.set_ylim(bottom=0.4)
     fig.savefig(save_dir / particular_save_str)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(10,7))
+    ax.scatter(rdf1*1e6, rdf2*1e6, marker='.', color='black')
+    ax.set_xlabel(f'RDF {data1_name} (ppm)')
+    ax.set_ylabel(f'RDF {data2_name} (ppm)')
+    ax.set_title(f'rdf_{data1_name}_vs_rdf_{data2_name}', fontdict=dict(size=14))
+    style_ax(ax)
+    fig.savefig(save_dir / 'rdf_scatter_plot.png')
     plt.close(fig)
 
     return (data_mean, mean_err), (std_dev, std_err), num_bins, chi2_red, fit_ok
@@ -841,7 +851,7 @@ def main():
         j = i + 1
         while j < asymmetries.shape[0]:
             ddf = asymmetries[i] - asymmetries[j]
-            ddf_mean, ddf_stddev, num_bins, chi2_red, fit_ok = compute_resolution(ddf, run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
+            ddf_mean, ddf_stddev, num_bins, chi2_red, fit_ok = compute_resolution(asymmetries[i], asymmetries[j], run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
             plot_diff_nonlinearity(asymmetries[i], ddf, run_dir, ch_names[i], ch_names[j], plot_config, rdf_cut_ppm=1000)
             save_dict.update({
                 f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_mean': ddf_mean,

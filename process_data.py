@@ -597,11 +597,16 @@ def compute_resolution(ddf, save_dir, data1_name, data2_name, plot_config, verbo
     return (data_mean, mean_err), (std_dev, std_err), num_bins, chi2_red, fit_ok
 
 
-def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config):
+def plot_diff_nonlinearity(rdf, ddf, save_dir, ch1_name, ch2_name, plot_config, rdf_cut_ppm=None):
     """Scatter and binned-mean plots of DDF vs RDF to diagnose differential nonlinearity."""
 
     rdf_ppm = rdf * 1e6
     ddf_ppm = ddf * 1e6
+
+    if not rdf_cut_ppm is None:
+        cut_mask = np.abs(rdf_ppm) < rdf_cut_ppm
+        rdf_ppm = rdf_ppm[cut_mask]
+        ddf_ppm = ddf_ppm[cut_mask]
 
     if is_enabled(plot_config, '10_dnl_scatter'):
         save_name = f'10_dnl_scatter_{ch1_name}-{ch2_name}'
@@ -829,7 +834,7 @@ def main():
         while j < asymmetries.shape[0]:
             ddf = asymmetries[i] - asymmetries[j]
             ddf_mean, ddf_stddev, num_bins, chi2_red, fit_ok = compute_resolution(ddf, run_dir, ch_names[j], ch_names[i], plot_config, verbose=args.verbose)
-            plot_diff_nonlinearity(asymmetries[i], ddf, run_dir, ch_names[i], ch_names[j], plot_config)
+            plot_diff_nonlinearity(asymmetries[i], ddf, run_dir, ch_names[i], ch_names[j], plot_config, rdf_cut_ppm=1000)
             save_dict.update({
                 f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_mean': ddf_mean,
                 f'ddf_{CH_NAME_DICT[str(i)]}-{CH_NAME_DICT[str(j)]}_stddev': ddf_stddev,

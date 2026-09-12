@@ -95,8 +95,8 @@ class mollerOverlay(Overlay):
 
         # map PL GPIO/MMIO registers
         self.fifo_flush = self.axi_gpio_0.channel1[0]
-        mmio_phys_addr = int(self.ip_dict['trigger_mmio_0']['phys_addr'])
-        mmio_addr_range = int(self.ip_dict['trigger_mmio_0']['addr_range'])
+        mmio_phys_addr = int(self.ip_dict['trigger_mmio_v3_1_0']['phys_addr'])
+        mmio_addr_range = int(self.ip_dict['trigger_mmio_v3_1_0']['addr_range'])
         self.mmio = MMIO(mmio_phys_addr, mmio_addr_range)
         
         # map DMAs

@@ -173,7 +173,7 @@ class mollerOverlay(Overlay):
             if value >= 4 or value < 0:
                 print(f'Error: value {value} is not valid.')
             else:
-                self.mmio.write(0x0, (self.mmio.read(0x0) & ~(0b11 << 3)) | (value << 3))
+                self.mmio.write(0x0, (self.mmio.read(0x0) & ~(0b11 << 2)) | (value << 2))
         elif setting == 'num_triggers':
             if value < 0 or value >= 2**32:
                 print(f'Error: value {value} is not valid.')

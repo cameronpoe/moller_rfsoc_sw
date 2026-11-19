@@ -1,0 +1,7 @@
+# Pins matching the PYNQ 3.1.1 (Carlisle, 2025_09_27) RFSoC4x2 board image.
+# PYNQ 3.1.1 depends on unpinned git versions of pynqmetadata/pynqutils; newer ones
+# (pynqmetadata >= 0.2.0) need pydantic 2 and break .hwh parsing in pynq 3.1.1.
+# Pinning pydantic makes pip refuse that upgrade instead of silently breaking the venv.
+# Use when installing anything into the PYNQ venv:  sudo pip install -c constraints.txt <pkg>
+pydantic==1.9.1
+typing_extensions==4.3.0

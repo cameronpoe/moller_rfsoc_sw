@@ -22,6 +22,20 @@ First, make sure you update the version of the code in the `__init__.py`. Next, 
 
 Then, from the root directory, run `sudo pip install .`. Make sure your `pip` is the PYNQ virtual environment pip, so running `which pip` should give `/usr/local/share/pynq-venv/bin/pip` (since it is in `/usr`, this is why we must use `sudo` with `pip`). After that, the package should be updated for use.
 
+### Restoring PYNQ dependencies
+
+The board image (PYNQ 3.1.1) needs `pydantic==1.9.1` and `pynqmetadata` 0.1.8. If something upgrades them (e.g. `pynqmetadata` 0.2.0 with pydantic 2), every overlay fails to load with an error like `KeyError: 'mts:ddr4_0[block]:C0_DDR4_S_AXI[port]'` from `mem_dict_view.py`. Check with `pip list | grep -i -E "pydantic|pynqmetadata"`, and restore the image versions with:
+
+```bash
+PIP=/usr/local/share/pynq-venv/bin/pip
+sudo $PIP install --no-deps "pydantic==1.9.1" "typing_extensions==4.3.0" \
+  "git+https://github.com/Xilinx/PYNQ-Metadata.git@1aa8e06" \
+  "git+https://github.com/Xilinx/PYNQ-Utils.git@2c0e028"
+sudo $PIP uninstall -y pydantic_core annotated_types typing_inspection
+```
+
+Then restart the Jupyter kernel. `rfsoc_moller` itself declares no dependencies, so installing it can't cause this. When installing other packages into the PYNQ venv, pass `-c constraints.txt` (from this repo) so pip errors out instead of upgrading pydantic.
+
 ## `rfsoc_moller_c`
 
 Contains online C code for use in analyzing data, specifically doing the I/Q phase rotation and window integration. 

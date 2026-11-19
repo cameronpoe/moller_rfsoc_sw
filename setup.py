@@ -20,10 +20,8 @@ setup(
     author_email="cameronpoe@berkeley.edu",
     packages=find_packages(include=[module_name, f"{module_name}.*"]),
     python_requires=">=3.10.0",
-    install_requires=[
-        "pynq",
-        "numpy",
-        "xrfclk",
-        "xrfdc",
-    ],
+    # pynq, xrfclk, xrfdc, and numpy are provided by the PYNQ 3.1.1 board image.
+    # Do not list them here: letting pip resolve pynq's dependencies can pull in
+    # incompatible pynqmetadata/pydantic versions (see constraints.txt).
+    install_requires=[],
 )

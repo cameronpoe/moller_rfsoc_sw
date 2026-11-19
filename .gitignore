@@ -2,3 +2,5 @@ data/*
 tmp/*
 .vscode/
 plots/*
+*.egg-info/
+build/

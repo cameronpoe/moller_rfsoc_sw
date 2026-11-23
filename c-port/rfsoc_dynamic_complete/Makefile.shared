@@ -1,0 +1,27 @@
+CC ?= gcc
+CFLAGS ?= -O3 -std=c11 -Wall -Wextra -Wpedantic
+CFLAGS += -D_POSIX_C_SOURCE=200809L -fPIC -Iinclude
+LDLIBS += -lm -lpthread
+
+SOURCES := \
+	src/io.c \
+	src/iq_rot.c \
+	src/integrator.c \
+	src/ddf.c \
+	src/rfsoc_processing.c \
+	src/rfsoc_ring.c \
+	src/rfsoc_stream.c \
+	src/rfsoc_api.c
+
+TARGET := build/librfsoc_processing.so
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(SOURCES) $(wildcard include/*.h)
+	mkdir -p build
+	$(CC) $(CFLAGS) -shared $(SOURCES) -o $@ $(LDLIBS)
+
+clean:
+	rm -f $(TARGET)
